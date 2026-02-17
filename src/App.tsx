@@ -4,6 +4,18 @@ import jsPDF from 'jspdf'
 import './App.css'
 import RegistrationPage from './components/RegistrationPage'
 import AdminPage from './components/AdminPage'
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where
+} from 'firebase/firestore'
+import { db } from './firebase.ts'
 import type {
   ChurchId,
   Delegate,
@@ -11,13 +23,8 @@ import type {
   DelegateCategory,
   TShirtSize,
   Mode,
-  StoredState,
 } from './types'
-import { CHURCHES, STORAGE_KEY } from './types'
-
-function createId(prefix: string) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-}
+import { CHURCHES } from './types'
 
 function App() {
   const [mode, setMode] = useState<Mode>('registration')
@@ -38,7 +45,7 @@ function App() {
     tshirtSize: 'M' as TShirtSize,
   })
 
-  // Shared data
+  // Shared data (synced from Firestore)
   const [delegates, setDelegates] = useState<Delegate[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [hydrated, setHydrated] = useState(false)
@@ -52,34 +59,36 @@ function App() {
   const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [adminPasswordError, setAdminPasswordError] = useState('')
 
-  // Load from localStorage on first mount
+  // Real-time sync from Firestore
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredState
-        if (Array.isArray(parsed.delegates) && Array.isArray(parsed.groups)) {
-          setDelegates(parsed.delegates)
-          setGroups(parsed.groups)
-        }
-      }
-    } catch {
-      // ignore bad data
-    } finally {
-      setHydrated(true)
+    const unsubDelegates = onSnapshot(collection(db, 'delegates'), (snapshot) => {
+      const loaded: Delegate[] = []
+      snapshot.forEach((docSnap) => {
+        loaded.push({ id: docSnap.id, ...docSnap.data() } as Delegate)
+      })
+      setDelegates(loaded)
+    }, (error) => {
+      console.error('Error listening to delegates:', error)
+      alert('Failed to load delegates. Check your internet or Firebase config.')
+    })
+
+    const unsubGroups = onSnapshot(collection(db, 'groups'), (snapshot) => {
+      const loaded: Group[] = []
+      snapshot.forEach((docSnap) => {
+        loaded.push({ id: docSnap.id, ...docSnap.data() } as Group)
+      })
+      setGroups(loaded)
+    }, (error) => {
+      console.error('Error listening to groups:', error)
+    })
+
+    setHydrated(true)
+
+    return () => {
+      unsubDelegates()
+      unsubGroups()
     }
   }, [])
-
-  // Persist to localStorage when data changes
-  useEffect(() => {
-    if (!hydrated) return
-    const state: StoredState = { delegates, groups }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // ignore storage errors
-    }
-  }, [delegates, groups, hydrated])
 
   const handleStartRegistration = () => {
     if (!selectedChurch || !expectedCount || expectedCount <= 0 || expectedCount > 50) return
@@ -88,7 +97,7 @@ function App() {
     setHasConfirmedCount(true)
   }
 
-  const handleSubmitDelegate = (e: FormEvent) => {
+  const handleSubmitDelegate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!selectedChurch || !expectedCount) return
 
@@ -97,42 +106,55 @@ function App() {
       !form.lastName.trim() ||
       !form.firstName.trim() ||
       !form.birthday ||
-      !ageNumber ||
+      isNaN(ageNumber) ||
       ageNumber <= 0 ||
       !form.tshirtSize
     ) {
       return
     }
 
-    const newDelegate: Delegate = {
-      id: createId('delegate'),
-      church: selectedChurch,
-      lastName: form.lastName.trim(),
-      firstName: form.firstName.trim(),
-      age: ageNumber,
-      birthday: form.birthday,
-      category: form.category,
-      tshirtSize: form.tshirtSize,
-      createdAt: new Date().toISOString(),
+    try {
+      const delegatesCol = collection(db, 'delegates')
+      const churchQuery = query(delegatesCol, where('church', '==', selectedChurch))
+      const currentSnap = await getDocs(churchQuery)
+
+      if (currentSnap.size >= 50) {
+        alert('Maximum of 50 delegates per church has been reached.')
+        return
+      }
+
+      const newDelegate = {
+        church: selectedChurch,
+        lastName: form.lastName.trim(),
+        firstName: form.firstName.trim(),
+        age: ageNumber,
+        birthday: form.birthday,
+        category: form.category,
+        tshirtSize: form.tshirtSize,
+        createdAt: new Date().toISOString(),
+      }
+
+      await addDoc(delegatesCol, newDelegate)
+
+      const nextIndex = currentIndex + 1
+      if (nextIndex >= Number(expectedCount)) {
+        setRegistrationDone(true)
+      } else {
+        setCurrentIndex(nextIndex)
+      }
+
+      setForm({
+        lastName: '',
+        firstName: '',
+        age: '',
+        birthday: '',
+        category: 'Young People',
+        tshirtSize: 'M',
+      })
+    } catch (err) {
+      console.error('Error adding delegate:', err)
+      alert('Failed to save delegate. Please check your internet connection.')
     }
-
-    setDelegates((prev) => [...prev, newDelegate])
-
-    const nextIndex = currentIndex + 1
-    if (nextIndex >= expectedCount) {
-      setRegistrationDone(true)
-    } else {
-      setCurrentIndex(nextIndex)
-    }
-
-    setForm({
-      lastName: '',
-      firstName: '',
-      age: '',
-      birthday: '',
-      category: 'Young People',
-      tshirtSize: 'M',
-    })
   }
 
   const resetRegistration = () => {
@@ -172,7 +194,6 @@ function App() {
     return delegatesByChurch[adminChurch]
   }, [adminChurch, delegates, delegatesByChurch])
 
-  // Groups are now global (not per church)
   const groupsForAdminChurch = useMemo(() => groups, [groups])
 
   const assignedDelegateIds = useMemo(() => {
@@ -190,66 +211,94 @@ function App() {
     [adminDelegates, assignedDelegateIds],
   )
 
-  const handleGenerateGroups = () => {
+  const handleGenerateGroups = async () => {
     const safeGroupCount = Math.max(1, Math.min(groupCount, 4))
     if (!delegates.length || safeGroupCount <= 0) return
 
-    // Sort by age (oldest first) so each group gets a fair age mix
     const sorted = [...delegates].sort((a, b) => b.age - a.age)
 
-    const newGroups: Group[] = []
+    const newGroupsData: Omit<Group, 'id'>[] = []
     for (let i = 0; i < safeGroupCount; i++) {
-      newGroups.push({
-        id: createId(`group_all_${i + 1}`),
-        // church field is kept for type compatibility but no longer used for filtering
-        church: sorted[0]?.church ?? CHURCHES[0].id,
+      newGroupsData.push({
         name: `Group ${i + 1}`,
         delegateIds: [],
+        church: sorted[0]?.church ?? CHURCHES[0].id,
       })
     }
 
-    // Round-robin distribution for perfectly balanced groups:
-    // if delegates = 16 and groups = 4, each group will have exactly 4 members.
-    // In other cases, group sizes differ by at most 1.
     sorted.forEach((d, idx) => {
       const targetIndex = idx % safeGroupCount
-      newGroups[targetIndex].delegateIds.push(d.id)
+      newGroupsData[targetIndex].delegateIds.push(d.id)
     })
 
-    // Replace existing groups with new global groups
-    setGroups(newGroups)
+    try {
+      const groupsCol = collection(db, 'groups')
+      const snap = await getDocs(groupsCol)
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)))
+
+      await Promise.all(newGroupsData.map((data) => addDoc(groupsCol, data)))
+    } catch (err) {
+      console.error('Error generating groups:', err)
+      alert('Failed to generate groups.')
+    }
   }
 
   const handleDragStart = (delegateId: string) => {
     setDraggedDelegateId(delegateId)
   }
 
-  const handleDropToGroup = (groupId: string) => {
+  const handleDropToGroup = async (groupId: string) => {
     if (!draggedDelegateId) return
-    setGroups((prev) =>
-      prev.map((g) => {
-        // Remove from all groups of this church first
-        let delegateIds = g.delegateIds.filter((id) => id !== draggedDelegateId)
-        if (g.id === groupId) {
-          if (!delegateIds.includes(draggedDelegateId)) {
-            delegateIds = [...delegateIds, draggedDelegateId]
-          }
+
+    try {
+      const groupsCol = collection(db, 'groups')
+      const snap = await getDocs(groupsCol)
+
+      const updatePromises = snap.docs.map(async (gDoc) => {
+        let delegateIds: string[] = gDoc.data().delegateIds ?? []
+        const originalLength = delegateIds.length
+
+        delegateIds = delegateIds.filter((id: string) => id !== draggedDelegateId)
+
+        if (gDoc.id === groupId && !delegateIds.includes(draggedDelegateId)) {
+          delegateIds.push(draggedDelegateId)
         }
-        return { ...g, delegateIds }
-      }),
-    )
-    setDraggedDelegateId(null)
+
+        if (delegateIds.length !== originalLength) {
+          await updateDoc(gDoc.ref, { delegateIds })
+        }
+      })
+
+      await Promise.all(updatePromises)
+    } catch (err) {
+      console.error('Error moving delegate:', err)
+    } finally {
+      setDraggedDelegateId(null)
+    }
   }
 
-  const handleDropToLate = () => {
+  const handleDropToLate = async () => {
     if (!draggedDelegateId) return
-    setGroups((prev) =>
-      prev.map((g) => ({
-        ...g,
-        delegateIds: g.delegateIds.filter((id) => id !== draggedDelegateId),
-      })),
-    )
-    setDraggedDelegateId(null)
+
+    try {
+      const groupsCol = collection(db, 'groups')
+      const snap = await getDocs(groupsCol)
+
+      const updatePromises = snap.docs.map(async (gDoc) => {
+        const delegateIds: string[] = gDoc.data().delegateIds ?? []
+        const filtered = delegateIds.filter((id: string) => id !== draggedDelegateId)
+
+        if (filtered.length !== delegateIds.length) {
+          await updateDoc(gDoc.ref, { delegateIds: filtered })
+        }
+      })
+
+      await Promise.all(updatePromises)
+    } catch (err) {
+      console.error('Error removing from group:', err)
+    } finally {
+      setDraggedDelegateId(null)
+    }
   }
 
   const handleGoToAdmin = () => {
@@ -276,9 +325,7 @@ function App() {
   }
 
   const handleDownloadMembersPdf = () => {
-    if (!delegates.length) {
-      return
-    }
+    if (!delegates.length) return
 
     const doc = new jsPDF()
     let y = 10
@@ -322,9 +369,7 @@ function App() {
 
       groupMembers.forEach((m, index) => {
         addLine(
-          `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${
-            m.tshirtSize ?? '-'
-          }`,
+          `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${m.tshirtSize ?? '-'}`,
           4,
         )
       })
@@ -336,9 +381,7 @@ function App() {
       addLine('Unassigned / late delegates', 0)
       unassigned.forEach((m, index) => {
         addLine(
-          `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${
-            m.tshirtSize ?? '-'
-          }`,
+          `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${m.tshirtSize ?? '-'}`,
           4,
         )
       })
@@ -383,9 +426,7 @@ function App() {
 
     members.forEach((m, index) => {
       addLine(
-        `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${
-          m.tshirtSize ?? '-'
-        }`,
+        `${index + 1}. ${m.lastName}, ${m.firstName} – age ${m.age} – ${m.category} – ${m.church} – size ${m.tshirtSize ?? '-'}`,
         0,
       )
     })
@@ -397,7 +438,7 @@ function App() {
   if (!hydrated) {
     return (
       <div className="page">
-        <div className="loading">Loading...</div>
+        <div className="loading">Loading data from cloud...</div>
       </div>
     )
   }
@@ -415,7 +456,7 @@ function App() {
       onStartRegistration={handleStartRegistration}
       onSubmitDelegate={handleSubmitDelegate}
       onResetRegistration={resetRegistration}
-      onUpdateForm={setForm}
+      onUpdateForm={(updater) => setForm(updater)}
       onGoToAdmin={handleGoToAdmin}
       showAdminLogin={showAdminLogin}
       adminPasswordInput={adminPasswordInput}
@@ -445,9 +486,13 @@ function App() {
       onDragStart={handleDragStart}
       onDownloadMembersPdf={handleDownloadMembersPdf}
       onDownloadGroupPdf={handleDownloadGroupPdf}
-      onRenameGroup={(groupId, name) =>
-        setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)))
-      }
+      onRenameGroup={async (groupId, name) => {
+        try {
+          await updateDoc(doc(db, 'groups', groupId), { name })
+        } catch (err) {
+          console.error('Error renaming group:', err)
+        }
+      }}
       onGoToRegistration={() => setMode('registration')}
     />
   )
