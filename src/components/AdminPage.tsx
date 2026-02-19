@@ -1,263 +1,168 @@
-import { CHURCHES } from '../types'
+import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group } from '../types'
+import { generateGroupListPDF } from '../utils/pdfGenerator'
 
 interface AdminPageProps {
-  delegates: Delegate[]
-  adminDelegates: Delegate[]
-  lateDelegates: Delegate[]
-  groupsForAdminChurch: Group[]
+  delegates: Delegate[] 
+  paidDelegates: Delegate[] 
+  unpaidDelegates: Delegate[] 
+  groups: Group[]
+  unassignedPaidDelegates: Delegate[]
   adminChurchFilter: ChurchId | 'ALL'
-  adminChurch: ChurchId | null
   groupCount: number
-  onSetAdminChurchFilter: (value: ChurchId | 'ALL') => void
-  onSetGroupCount: (value: number) => void
-  onGenerateGroups: () => void
+  onSetAdminChurchFilter: (val: ChurchId | 'ALL') => void
+  onAutoGroup: () => void
+  onTogglePayment: (id: string, currentStatus: 'PAID'|'UNPAID') => void
   onDropToLate: () => void
   onDropToGroup: (groupId: string) => void
-  onDragStart: (delegateId: string) => void
-  onDownloadMembersPdf: () => void
-  onDownloadGroupPdf: (groupId: string) => void
-  onRenameGroup: (groupId: string, name: string) => void
+  onDragStart: (id: string) => void
+  onPrintIDs: (groupId?: string) => void
+  onRenameGroup: (id: string, name: string) => void
   onGoToRegistration: () => void
+  showToast: (msg: string, type: 'success'|'error'|'info') => void // Added this
 }
 
 function AdminPage({
-  delegates,
-  adminDelegates,
-  lateDelegates,
-  groupsForAdminChurch,
+  unpaidDelegates,
+  groups,
+  unassignedPaidDelegates,
   adminChurchFilter,
-  adminChurch,
-  groupCount,
+  delegates,
   onSetAdminChurchFilter,
-  onSetGroupCount,
-  onGenerateGroups,
+  onAutoGroup,
+  onTogglePayment,
   onDropToLate,
   onDropToGroup,
   onDragStart,
-  onDownloadMembersPdf,
-  onDownloadGroupPdf,
+  onPrintIDs,
   onRenameGroup,
-  onGoToRegistration,
+  onGoToRegistration
 }: AdminPageProps) {
+
+  const filterByChurch = (list: Delegate[]) => {
+    if (adminChurchFilter === 'ALL') return list
+    return list.filter(d => d.church === adminChurchFilter)
+  }
+
+  const visibleUnpaid = filterByChurch(unpaidDelegates)
+  const sortedGroups = [...groups].sort((a, b) => {
+    const num = (name: string) => {
+      const m = name.match(/\d+/)
+      return m ? Number(m[0]) : Number.POSITIVE_INFINITY
+    }
+    return num(a.name) - num(b.name)
+  })
+
   return (
-    <div className="page">
+    <div className="page" style={{minHeight:'100vh'}}>
       <header className="topbar">
         <div>
           <div className="camp-title">Youth Camp 2026</div>
           <div className="camp-subtitle">Admin Dashboard</div>
         </div>
-        <button className="topbar-button" onClick={onGoToRegistration}>
-          Registration
-        </button>
+        <button className="topbar-button" onClick={onGoToRegistration}>Back to Registration</button>
       </header>
 
       <main className="content">
+        
+        {/* Controls */}
         <section className="card">
-          <div className="admin-controls">
-            <div className="admin-row">
-              <label>
-                Church view (for table only)
-                <select
-                  value={adminChurchFilter}
-                  onChange={(e) =>
-                    onSetAdminChurchFilter(e.target.value === 'ALL' ? 'ALL' : (e.target.value as ChurchId))
-                  }
-                >
-                  <option value="ALL">All churches</option>
-                  {CHURCHES.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Number of groups (max 4)
-                <input
-                  type="number"
-                  min={1}
-                  max={4}
-                  value={groupCount}
-                  onChange={(e) => {
-                    const n = Number(e.target.value)
-                    if (!Number.isNaN(n) && n >= 1 && n <= 4) onSetGroupCount(n)
-                  }}
-                />
-              </label>
-              <button className="primary" onClick={onGenerateGroups} disabled={!delegates.length}>
-                Auto-group by age (all churches)
-              </button>
-            </div>
-            <p className="helper">
-              Auto-grouping distributes delegates by age as evenly as possible across groups for the selected church.
-            </p>
+          <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'end'}}>
+             <div className="field-group">
+               <label>Filter View</label>
+               <select
+                 value={adminChurchFilter}
+                 onChange={(e) => {
+                   const v = e.target.value
+                   onSetAdminChurchFilter(v === 'ALL' ? 'ALL' : (v as ChurchId))
+                 }}
+               >
+                 <option value="ALL">All Churches</option>
+                 {CHURCHES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+               </select>
+             </div>
+             
+             <div className="actions" style={{margin:0}}>
+               <button className="primary" onClick={onAutoGroup}>Auto Group (Fixed 4)</button>
+             </div>
           </div>
         </section>
 
-        <section className="layout-columns">
-          <section
-            className="card column"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDropToLate}
-          >
-            <h2>Late delegates / unassigned</h2>
-            <p className="helper">
-              These delegates do not belong to any group yet. Drag them into a group on the right.
-            </p>
-            {lateDelegates.length === 0 ? (
-              <p className="empty">No late or unassigned delegates.</p>
-            ) : (
-              <ul className="delegate-list">
-                {lateDelegates.map((d) => (
-                  <li
-                    key={d.id}
-                    className="delegate-card"
-                    draggable
-                    onDragStart={() => onDragStart(d.id)}
-                  >
-                    <div className="delegate-main">
-                      <span className="delegate-name">
-                        {d.lastName}, {d.firstName}
-                      </span>
-                      <span className="delegate-meta">
-                        {d.age} yrs • {d.category} • {d.church}
-                      </span>
+        {/* 3-Column Layout */}
+        <div className="admin-dashboard-grid">
+           
+           {/* COL 1: UNPAID */}
+           <section className="card" style={{padding:'1rem'}}>
+             <h3 style={{marginBottom:'1rem', color:'#dc2626'}}>Unpaid ({visibleUnpaid.length})</h3>
+             <div className="table-wrapper" style={{maxHeight:'600px', overflowY:'auto'}}>
+               {visibleUnpaid.map(d => (
+                 <div key={d.id} className="delegate-card" style={{marginBottom:'0.5rem', display:'block'}}>
+                    <div style={{fontWeight:'800'}}>{d.lastName}, {d.firstName}</div>
+                    <div style={{fontSize:'0.75rem', color:'#6b7280'}}>{getChurchName(d.church)}</div>
+                    <button className="primary small" style={{marginTop:'0.5rem', width:'100%'}} onClick={() => onTogglePayment(d.id, 'UNPAID')}>
+                      Mark as PAID
+                    </button>
+                 </div>
+               ))}
+               {visibleUnpaid.length === 0 && <p style={{fontSize:'0.8rem', color:'#9ca3af', textAlign:'center'}}>No unpaid delegates.</p>}
+             </div>
+           </section>
+
+           {/* COL 2: PAID / UNASSIGNED (LATE) */}
+           <section className="card" style={{padding:'1rem'}} onDragOver={e=>e.preventDefault()} onDrop={onDropToLate}>
+              <h3 style={{marginBottom:'1rem', color:'#d97706'}}>Late / Unassigned ({unassignedPaidDelegates.length})</h3>
+              <p className="helper-text" style={{fontSize:'0.75rem', marginBottom:'1rem'}}>Paid delegates not in any group.</p>
+              
+              <div className="delegate-list" style={{maxHeight:'600px', overflowY:'auto'}}>
+                {unassignedPaidDelegates.map(d => (
+                  <div key={d.id} className="delegate-card" draggable onDragStart={()=>onDragStart(d.id)}>
+                    <div>
+                      <div className="delegate-name">{d.lastName}, {d.firstName}</div>
+                      <div className="delegate-meta">{getChurchName(d.church)} • {d.age}yo</div>
                     </div>
-                  </li>
+                    <button className="ghost small" onClick={()=>onTogglePayment(d.id, 'PAID')}>Undo</button>
+                  </div>
                 ))}
-              </ul>
-            )}
-          </section>
+                {unassignedPaidDelegates.length === 0 && <p style={{fontSize:'0.8rem', color:'#9ca3af', textAlign:'center'}}>All paid delegates are grouped.</p>}
+              </div>
+           </section>
 
-          <section className="card column">
-            <h2>Groups (all churches)</h2>
-            {groupsForAdminChurch.length === 0 ? (
-              <p className="empty">No groups yet. Choose a church and click &quot;Auto-group by age&quot;.</p>
-            ) : (
+           {/* COL 3: GROUPS */}
+           <section className="card" style={{padding:'1rem', background:'#f3f4f6', border:'none'}}>
+              <h3 style={{marginBottom:'1rem', color:'#000'}}>Groups</h3>
               <div className="groups-grid">
-                {groupsForAdminChurch.map((g) => {
-                  const members = g.delegateIds
-                    .map((id) => delegates.find((d) => d.id === id))
-                    .filter((d): d is Delegate => Boolean(d))
-
-                  return (
-                    <div
-                      key={g.id}
-                      className="group-card"
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => onDropToGroup(g.id)}
-                    >
-                      <div className="group-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1 }}>
-                          <input
-                            className="group-name-input"
-                            value={g.name}
-                            onChange={(e) => onRenameGroup(g.id, e.target.value)}
-                          />
-                          <span className="badge">{members.length}</span>
+                {sortedGroups.map(g => {
+                   const members = g.delegateIds.map(id => delegates.find(d => d.id === id)).filter((d): d is Delegate => !!d)
+                   return (
+                     <div key={g.id} className="group-card" onDragOver={e=>e.preventDefault()} onDrop={()=>onDropToGroup(g.id)} style={{background:'white'}}>
+                        <div className="group-header">
+                          <input value={g.name} onChange={e=>onRenameGroup(g.id, e.target.value)} className="group-name-input" />
+                          <span className="badge" style={{background:'var(--black)', color:'white'}}>{members.length}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="ghost small"
-                          onClick={() => onDownloadGroupPdf(g.id)}
-                          disabled={!members.length}
-                        >
-                          PDF
-                        </button>
-                      </div>
-                      {members.length === 0 ? (
-                        <p className="empty small">Drag delegates here.</p>
-                      ) : (
+                        
+                        {/* Group Actions */}
+                        <div style={{display:'flex', gap:'0.5rem', marginBottom:'1rem'}}>
+                           <button className="ghost small" style={{flex:1}} onClick={() => generateGroupListPDF(g, delegates)}>Download List</button>
+                           <button className="primary small" style={{flex:1}} onClick={() => onPrintIDs(g.id)}>Print IDs</button>
+                        </div>
+
                         <ul className="delegate-list compact">
-                          {members.map((d) => (
-                            <li
-                              key={d.id}
-                              className="delegate-card"
-                              draggable
-                              onDragStart={() => onDragStart(d.id)}
-                            >
-                              <div className="delegate-main">
-                                <span className="delegate-name">
-                                  {d.lastName}, {d.firstName}
-                                </span>
-                                <span className="delegate-meta">
-                                  {d.age} yrs • {d.category}
-                                </span>
-                              </div>
+                          {members.map(m => (
+                            <li key={m.id} className="delegate-card" draggable onDragStart={()=>onDragStart(m.id)}>
+                               <span className="delegate-name">{m.lastName}, {m.firstName}</span>
                             </li>
                           ))}
                         </ul>
-                      )}
-                    </div>
-                  )
+                     </div>
+                   )
                 })}
               </div>
-            )}
-          </section>
-        </section>
+           </section>
+        </div>
 
-        <section className="card">
-          <h2>Delegates overview</h2>
-          <p className="helper">
-            Showing {adminDelegates.length} delegates
-            {adminChurch ? ` from ${adminChurch}` : ' from all churches'}.
-          </p>
-          <div className="actions">
-            <button
-              type="button"
-              className="ghost"
-              onClick={onDownloadMembersPdf}
-              disabled={!delegates.length}
-            >
-              Download members list (PDF)
-            </button>
-          </div>
-          {adminDelegates.length === 0 ? (
-            <p className="empty">No delegates registered yet.</p>
-          ) : (
-            <>
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Church</th>
-                      <th>Last name</th>
-                      <th>First name</th>
-                      <th>Age</th>
-                      <th>Birthday</th>
-                      <th>Category</th>
-                      <th>T-shirt size</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adminDelegates.map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.church}</td>
-                        <td>{d.lastName}</td>
-                        <td>{d.firstName}</td>
-                        <td>{d.age}</td>
-                        <td>{d.birthday}</td>
-                        <td>{d.category}</td>
-                        <td>{(d as Delegate).tshirtSize ?? '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="admin-summary">
-                <p className="helper">
-                  <strong>Total delegates (all churches):</strong> {delegates.length} &nbsp;•&nbsp;
-                  <strong>Total registration amount @ 500:</strong> {delegates.length * 500}
-                </p>
-              </div>
-            </>
-          )}
-        </section>
       </main>
     </div>
   )
 }
 
 export default AdminPage
-

@@ -1,15 +1,23 @@
-export type ChurchId = 'MIBC' | 'QIBBC' | 'CBBC' | 'GCBC'
+export const CHURCHES = [
+  { id: 'MIBC', name: 'Mactan Independent Baptist Church' },
+  { id: 'QIBBC', name: 'Quiot Independent Bible Baptist Church' },
+  { id: 'CBBC', name: 'Consolacion Independent Baptist Church' },
+  { id: 'GCBC', name: 'Gospel of Christ Baptist Church' },
+] as const
 
-export const CHURCHES: { id: ChurchId; name: string }[] = [
-  { id: 'MIBC', name: 'MIBC' },
-  { id: 'QIBBC', name: 'QIBBC' },
-  { id: 'CBBC', name: 'CBBC' },
-  { id: 'GCBC', name: 'GCBC' },
-]
+export type ChurchId = typeof CHURCHES[number]['id']
 
-export type DelegateCategory = 'Young People' | 'Young Professional' | 'Bible Student' | 'Preacher'
+export const getChurchName = (id: ChurchId | null | string): string => {
+  const found = CHURCHES.find(c => c.id === id)
+  return found ? found.name : id || ''
+}
 
+export type DelegateCategory = 'High School (JHS)' | 'High School (SHS)' | 'College' | 'Young Professional'
 export type TShirtSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
+export type Gender = 'Male' | 'Female' // New Type
+export type Mode = 'registration' | 'admin'
+export type PaymentStatus = 'PAID' | 'UNPAID'
+export type PaymentMethod = 'ONLINE' | 'ONSITE'
 
 export interface Delegate {
   id: string
@@ -17,25 +25,20 @@ export interface Delegate {
   lastName: string
   firstName: string
   age: number
+  gender: Gender // New Field
   birthday: string
   category: DelegateCategory
   tshirtSize: TShirtSize
   createdAt: string
+  paymentStatus: PaymentStatus
+  paymentMethod: PaymentMethod
+  referenceNumber?: string
+  paymongoSourceId?: string
+  paymongoCheckoutUrl?: string
 }
 
 export interface Group {
   id: string
-  church: ChurchId
   name: string
   delegateIds: string[]
 }
-
-export type Mode = 'registration' | 'admin'
-
-export const STORAGE_KEY = 'youth-camp-2026-state'
-
-export interface StoredState {
-  delegates: Delegate[]
-  groups: Group[]
-}
-
