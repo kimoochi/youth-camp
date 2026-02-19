@@ -1,10 +1,7 @@
-import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, PaymentMethod } from '../types'
 import type { RegistrationFormState } from '../App'
-import { updateDoc, doc } from 'firebase/firestore'
-import { db } from '../firebase'
 
 interface RegistrationPageProps {
   view: 'CHURCH_SELECT' | 'LIST' | 'SETUP_BULK' | 'BULK_FORM' | 'SUCCESS'
@@ -15,6 +12,7 @@ interface RegistrationPageProps {
   bulkForms: RegistrationFormState[]
   bulkPaymentMethod: PaymentMethod
   setBulkPaymentMethod: (m: PaymentMethod) => void
+  isBulkSubmitting: boolean
   onUpdateBulkForm: (
     index: number,
     field: keyof RegistrationFormState,
@@ -27,6 +25,7 @@ interface RegistrationPageProps {
   onBackToChurches: () => void
   onFinishRegistration: () => void
   onGoToAdmin: () => void
+  onGoHome: () => void
   showAdminLogin: boolean
   adminPasswordInput: string
   adminPasswordError: string
@@ -45,6 +44,7 @@ function RegistrationPage({
   bulkForms,
   bulkPaymentMethod,
   setBulkPaymentMethod,
+  isBulkSubmitting,
   onUpdateBulkForm,
   onConfirmBulkCount,
   onStartBulk,
@@ -53,6 +53,7 @@ function RegistrationPage({
   onBackToChurches,
   onFinishRegistration,
   onGoToAdmin,
+  onGoHome,
   showAdminLogin,
   adminPasswordInput,
   adminPasswordError,
@@ -64,13 +65,8 @@ function RegistrationPage({
 
   const churchDelegates = delegates.filter(d => d.church === selectedChurch)
   const currentChurchName = getChurchName(selectedChurch)
-  const [showQRModal, setShowQRModal] = useState(false)
-  const [referenceNumber, setReferenceNumber] = useState('')
-  const [currentBatchIds, setCurrentBatchIds] = useState<string[]>([])
-  const [isSubmittingRef, setIsSubmittingRef] = useState(false)
 
   const GCASH_NUMBER = '09619605811'
-  const totalPhp = bulkForms.length * 600
 
   const isValidName = (v: string) => {
     const s = v.trim()
@@ -127,37 +123,23 @@ function RegistrationPage({
 
   const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (isBulkSubmitting) return
     const validationError = validateBulkForms()
     if (validationError) {
       showToast(validationError, 'error')
       return
     }
 
-    const newIds = await onSubmitBulk(e)
-    if (bulkPaymentMethod === 'ONLINE') {
-      setCurrentBatchIds(newIds)
-      setShowQRModal(true)
-    }
-  }
-
-  const handleSubmitReference = async () => {
-    if (!referenceNumber.trim()) { showToast('Please enter the reference number.', 'error'); return }
-    setIsSubmittingRef(true)
-    try {
-      await Promise.all(currentBatchIds.map(id => updateDoc(doc(db, 'delegates', id), { referenceNumber: referenceNumber })))
-      showToast('Reference number submitted!', 'success')
-      setReferenceNumber('')
-      setShowQRModal(false)
-    } catch (err) { console.error(err); showToast('Failed to save reference number.', 'error') } finally { setIsSubmittingRef(false) }
+    await onSubmitBulk(e)
   }
 
   return (
     <div className="page" style={{minHeight:'100vh'}}>
       <header className="topbar">
-        <div>
+        <button type="button" className="topbar-home" onClick={onGoHome}>
           <div className="camp-title">Youth Camp 2026</div>
           <div className="camp-subtitle">Registration Portal</div>
-        </div>
+        </button>
         <button className="topbar-button" onClick={onGoToAdmin}>Admin Access</button>
       </header>
 
@@ -179,59 +161,7 @@ function RegistrationPage({
           </div>
         )}
 
-        {/* QR MODAL */}
-        {showQRModal && (
-          <div className="modal-overlay" style={{zIndex: 999}}>
-            <div className="qr-modal-content" style={{background: 'white', padding: '2rem', borderRadius: '16px', maxWidth: '420px', width: '90%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: '4px solid var(--primary)', position: 'relative', animation: 'slideUp 0.3s ease-out'}}>
-              <h2 style={{fontSize: '1.5rem', marginBottom: '0.5rem', color: '#0054A6', fontWeight: 900}}>PAY ONLINE (GCASH)</h2>
-              <p style={{fontSize: '0.9rem', color: '#555', marginBottom: '1rem'}}>
-                Send your payment via GCash, then enter the reference number below.
-              </p>
-
-              <div style={{textAlign: 'left', padding: '1rem', border: '1px solid #e5e7eb', borderRadius: 12, background: '#f9fafb', marginBottom: '1rem'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem'}}>
-                  <div>
-                    <div style={{fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#6b7280'}}>GCash Number</div>
-                    <div style={{fontSize: '1.25rem', fontWeight: 900, letterSpacing: '0.06em'}}>{GCASH_NUMBER}</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="ghost small"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(GCASH_NUMBER)
-                        showToast('GCash number copied', 'success')
-                      } catch {
-                        showToast('Copy failed. Please copy manually.', 'error')
-                      }
-                    }}
-                  >
-                    Copy
-                  </button>
-                </div>
-                <div style={{marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
-                  <div style={{fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#6b7280'}}>Amount to Pay</div>
-                  <div style={{fontSize: '1.1rem', fontWeight: 900}}>₱{totalPhp}</div>
-                </div>
-                <ol style={{marginTop: '0.75rem', marginBottom: 0, paddingLeft: '1.2rem', color: '#374151', fontSize: '0.9rem', lineHeight: 1.4}}>
-                  <li>Open GCash → Send Money → Express Send</li>
-                  <li>Enter the number and amount above</li>
-                  <li>After paying, copy the GCash reference number</li>
-                </ol>
-              </div>
-
-              <div style={{textAlign:'left', marginBottom:'1rem'}}>
-                <label style={{fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase', color:'#555'}}>Enter GCash Reference No.</label>
-                <input type="text" value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="e.g. 1234 5678 9012" style={{width:'100%', marginTop:'0.3rem', borderColor: '#0054A6'}} />
-              </div>
-
-              <div className="actions centered" style={{marginTop:'1rem', gap:'0.5rem'}}>
-                <button className="ghost" onClick={() => setShowQRModal(false)} disabled={isSubmittingRef}>Skip</button>
-                <button className="primary" onClick={handleSubmitReference} disabled={isSubmittingRef}>{isSubmittingRef ? 'Saving...' : 'Submit Payment'}</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* QR / reference modal removed – online payments handled via simple instructions only */}
 
         {/* STEP 1 & 2 & 3 (Same as before) */}
         {view === 'CHURCH_SELECT' && !showAdminLogin && (
@@ -379,22 +309,34 @@ function RegistrationPage({
              </div>
 
              <div className="actions right fixed-footer">
-                <button type="submit" className="primary large">Submit All {bulkForms.length} Registrations</button>
+               <button type="submit" className="primary large" disabled={isBulkSubmitting}>
+                 {isBulkSubmitting ? 'Submitting...' : `Submit All ${bulkForms.length} Registrations`}
+               </button>
              </div>
           </form>
         )}
 
-        {view === 'SUCCESS' && !showAdminLogin && !showQRModal && (
+        {view === 'SUCCESS' && !showAdminLogin && (
           <section className="card centered-card">
             <div style={{fontSize:'3rem', marginBottom:'1rem'}}>✅</div>
             <h2>Registration Successful!</h2>
             <p style={{marginBottom:'2rem'}}>Successfully registered {bulkForms.length} delegates.</p>
             {bulkPaymentMethod === 'ONLINE' ? (
               <div style={{background:'#f9fafb', padding:'1.5rem', borderRadius:'8px', marginBottom:'2rem'}}>
-                <p><strong>Pending Verification</strong></p>
-                <p className="helper-text">If you submitted your Reference Number, the admin will verify it shortly. You can check the delegate list for status updates.</p>
+                <p><strong>Online Payment Instructions</strong></p>
+                <p style={{marginBottom:'0.5rem'}}>
+                  Total amount is <strong>₱{bulkForms.length * 600}</strong> according to the delegates you registered.
+                </p>
+                <p style={{marginBottom:'0.5rem'}}>
+                  Please send your payment to GCash number <strong>{GCASH_NUMBER}</strong>.
+                </p>
+                <p className="helper-text">
+                  After paying, send a message on Messenger to <strong>Aldo Yu</strong> with your church name and number of delegates.
+                </p>
               </div>
-            ) : (<p className="helper-text">Please pay ₱{bulkForms.length * 600} at the registration desk.</p>)}
+            ) : (
+              <p className="helper-text">Your total payment is: ₱{bulkForms.length * 600}.</p>
+            )}
             <button className="primary" onClick={onFinishRegistration}>Back to Delegate List</button>
           </section>
         )}

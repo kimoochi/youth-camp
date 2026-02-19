@@ -6,7 +6,7 @@ import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ChurchId, Delegate, Group, DelegateCategory, TShirtSize, Mode, PaymentMethod, Gender } from './types'
 import { generateIDCards } from './utils/pdfGenerator'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { 
   addDelegateToFirestore, 
   toggleDelegatePayment, 
@@ -30,7 +30,6 @@ type ToastType = { message: string, type: 'success' | 'error' | 'info', id: numb
 
 function App() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [, setMode] = useState<Mode>('registration')
   const [selectedChurch, setSelectedChurch] = useState<ChurchId | null>(null)
   const [regView, setRegView] = useState<'CHURCH_SELECT' | 'LIST' | 'SETUP_BULK' | 'BULK_FORM' | 'SUCCESS'>('CHURCH_SELECT')
@@ -38,6 +37,7 @@ function App() {
   const [bulkCount, setBulkCount] = useState(1)
   const [bulkForms, setBulkForms] = useState<RegistrationFormState[]>([])
   const [bulkPaymentMethod, setBulkPaymentMethod] = useState<PaymentMethod>('ONSITE')
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
 
   const [delegates, setDelegates] = useState<Delegate[]>([])
   const [groups, setGroups] = useState<Group[]>([])
@@ -65,8 +65,13 @@ function App() {
   useEffect(() => {
     let gotDelegates = false
     let gotGroups = false
+    let hasHydrated = false
+
     const maybeHydrate = () => {
-      if (!hydrated && gotDelegates && gotGroups) setHydrated(true)
+      if (!hasHydrated && gotDelegates && gotGroups) {
+        hasHydrated = true
+        setHydrated(true)
+      }
     }
 
     const unsubDel = onSnapshot(collection(db, 'delegates'), snap => {
@@ -79,8 +84,9 @@ function App() {
       gotGroups = true
       maybeHydrate()
     })
+
     return () => { unsubDel(); unsubGrp() }
-  }, [hydrated])
+  }, [])
 
   // Keep "/" as Home. Only use "/register" for the bulk registration flow.
 
@@ -98,29 +104,36 @@ function App() {
   
   const handleSubmitBulk = async (e: React.FormEvent): Promise<string[]> => {
     e.preventDefault()
+    if (isBulkSubmitting) return []
     if (!selectedChurch) return []
+    setIsBulkSubmitting(true)
     try {
-      const docRefs = await Promise.all(bulkForms.map(form => addDelegateToFirestore({
-        church: selectedChurch, 
-        lastName: form.lastName, 
-        firstName: form.firstName, 
-        age: Number(form.age), 
-        gender: form.gender, // Include gender
-        birthday: form.birthday, 
-        category: form.category, 
-        tshirtSize: form.tshirtSize, 
-        createdAt: new Date().toISOString(), 
-        paymentStatus: 'UNPAID', 
-        paymentMethod: bulkPaymentMethod,
-      })))
-      
+      const docRefs = await Promise.all(
+        bulkForms.map(form =>
+          addDelegateToFirestore({
+            church: selectedChurch,
+            lastName: form.lastName,
+            firstName: form.firstName,
+            age: Number(form.age),
+            gender: form.gender, // Include gender
+            birthday: form.birthday,
+            category: form.category,
+            tshirtSize: form.tshirtSize,
+            createdAt: new Date().toISOString(),
+            paymentStatus: 'UNPAID',
+            paymentMethod: bulkPaymentMethod,
+          })
+        )
+      )
+
       setRegView('SUCCESS')
       showToast(`Successfully registered ${bulkForms.length} delegates!`, 'success')
       return docRefs.map(ref => ref.id)
-
-    } catch { 
-      showToast('Failed to save delegates.', 'error') 
+    } catch {
+      showToast('Failed to save delegates.', 'error')
       return []
+    } finally {
+      setIsBulkSubmitting(false)
     }
   }
 
@@ -152,8 +165,6 @@ function App() {
     } catch { showToast('No delegates to print', 'error') }
   }
 
-  if (!hydrated) return <div className="page"><div style={{margin:'auto'}}>Loading...</div></div>
-
   return (
     <div className="page">
       <div className="toast-container">
@@ -163,6 +174,15 @@ function App() {
           </div>
         ))}
       </div>
+
+      {!hydrated && (
+        <div className="initial-loader-overlay">
+          <div className="initial-loader-card">
+            <div className="spinner" />
+            <p>Loading camp data...</p>
+          </div>
+        </div>
+      )}
 
       <Routes>
         <Route
@@ -177,6 +197,7 @@ function App() {
               bulkForms={bulkForms}
               bulkPaymentMethod={bulkPaymentMethod}
               setBulkPaymentMethod={setBulkPaymentMethod}
+              isBulkSubmitting={isBulkSubmitting}
               onUpdateBulkForm={handleUpdateBulkForm}
               onConfirmBulkCount={(count) => {
                 handleConfirmBulkCount(count)
@@ -197,6 +218,11 @@ function App() {
               }}
               onFinishRegistration={() => {
                 setRegView('LIST')
+              }}
+              onGoHome={() => {
+                setSelectedChurch(null)
+                setRegView('CHURCH_SELECT')
+                navigate('/')
               }}
               onGoToAdmin={() => {
                 if (isAdminUnlocked) {
@@ -230,6 +256,7 @@ function App() {
                 bulkForms={bulkForms}
                 bulkPaymentMethod={bulkPaymentMethod}
                 setBulkPaymentMethod={setBulkPaymentMethod}
+                isBulkSubmitting={isBulkSubmitting}
                 onUpdateBulkForm={handleUpdateBulkForm}
                 onConfirmBulkCount={handleConfirmBulkCount}
                 onStartBulk={handleStartBulk}
@@ -246,6 +273,11 @@ function App() {
                 }}
                 onFinishRegistration={() => {
                   setRegView('LIST')
+                  navigate('/')
+                }}
+                onGoHome={() => {
+                  setSelectedChurch(null)
+                  setRegView('CHURCH_SELECT')
                   navigate('/')
                 }}
                 onGoToAdmin={() => {

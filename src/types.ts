@@ -33,8 +33,6 @@ export interface Delegate {
   paymentStatus: PaymentStatus
   paymentMethod: PaymentMethod
   referenceNumber?: string
-  paymongoSourceId?: string
-  paymongoCheckoutUrl?: string
 }
 
 export interface Group {
