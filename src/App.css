@@ -355,6 +355,18 @@ button { border: none; font-family: inherit; cursor: pointer; transition: 0.2s; 
 .field-group.third { grid-column: span 2; }
 .field-group.quarter { grid-column: span 1; }
 
+/* New birthday field styles */
+.birthday-select-group {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr; /* M D Y */
+  gap: 0.5rem;
+}
+
+.birthday-select-group select {
+  text-align: center;
+}
+
+
 @media (max-width: 768px) {
   .form-grid-compact { grid-template-columns: 1fr 1fr; }
   .field-group.half, .field-group.third { grid-column: span 2; }
@@ -438,3 +450,158 @@ tr:last-child td { border-bottom: none; }
 .radio-tile.selected { border-color: var(--black); background: var(--primary); color: var(--black); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 .radio-tile input { accent-color: var(--black); width: 1.2rem; height: 1.2rem; }
 .fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 1.5rem; border-top: 1px solid #e5e7eb; z-index: 40; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); }
+
+/* --- Responsive --- */
+@media (max-width: 1200px) {
+  .admin-dashboard-grid {
+    grid-template-columns: 320px 1fr; /* 2 columns on medium screens */
+  }
+  .admin-dashboard-grid > section:first-child { /* Unpaid column */
+    grid-column: 1 / -1; /* Make it full width if needed, or adjust */
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-grid {
+    grid-template-columns: 1fr; /* 1 column on smaller screens */
+  }
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 1rem;
+  }
+  .form-grid-compact { 
+    grid-template-columns: 1fr 1fr; 
+  }
+  .field-group.half, .field-group.third { 
+    grid-column: span 2; 
+  }
+  .field-group.quarter { 
+    grid-column: span 1; 
+  }
+  .actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .actions button {
+    width: 100%;
+  }
+  .centered-card {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 1rem;
+  }
+  .camp-title {
+    font-size: 1.25rem;
+  }
+  .camp-subtitle {
+    font-size: 0.75rem;
+  }
+  .delegate-form-card {
+    padding: 2rem 1.5rem;
+  }
+  .form-grid-compact {
+    grid-template-columns: 1fr;
+  }
+  .field-group.half, .field-group.third, .field-group.quarter {
+    grid-column: span 1;
+  }
+  .counter-input {
+    gap: 1rem;
+  }
+  .counter-val {
+    font-size: 2.5rem;
+  }
+  .counter-btn {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* --- Animations & Effects --- */
+
+/* Add a subtle background pattern */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23FFD700' fill-opacity='0.08' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Animate elements on load */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.content > .card,
+.admin-dashboard-grid > section,
+.groups-grid > .group-card {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0; /* Start hidden */
+}
+
+/* Stagger animations for a nicer effect */
+.content > .card { animation-delay: 0.1s; }
+.admin-dashboard-grid > section:nth-child(1) { animation-delay: 0.2s; }
+.admin-dashboard-grid > section:nth-child(2) { animation-delay: 0.3s; }
+.admin-dashboard-grid > section:nth-child(3) { animation-delay: 0.4s; }
+
+/* Stagger group cards (example for up to 8) */
+.groups-grid > .group-card:nth-child(1) { animation-delay: 0.1s; }
+.groups-grid > .group-card:nth-child(2) { animation-delay: 0.15s; }
+.groups-grid > .group-card:nth-child(3) { animation-delay: 0.2s; }
+.groups-grid > .group-card:nth-child(4) { animation-delay: 0.25s; }
+.groups-grid > .group-card:nth-child(5) { animation-delay: 0.3s; }
+.groups-grid > .group-card:nth-child(6) { animation-delay: 0.35s; }
+.groups-grid > .group-card:nth-child(7) { animation-delay: 0.4s; }
+.groups-grid > .group-card:nth-child(8) { animation-delay: 0.45s; }
+
+
+/* Enhanced button hover effect */
+.primary {
+  transition: all 0.3s ease-out !important; /* Use important to override other transitions */
+}
+.primary:hover { 
+  transform: translateY(-3px) scale(1.03); 
+  box-shadow: 0 8px 25px -5px rgba(255, 215, 0, 0.5), 0 5px 15px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Shimmer animation for the title */
+@keyframes textShine {
+  from { background-position: 150% 50%; }
+  to { background-position: -50% 50%; }
+}
+
+.camp-title {
+  background: linear-gradient(to right, #ffffff 30%, #FFD700 50%, #ffffff 70%);
+  background-size: 200% auto;
+  color: #fff;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShine 4s linear infinite;
+  font-weight: 900; /* Ensure font is bold for effect to be visible */
+}
+
+/* Add a little bounce to church tiles on hover */
+.church-tile {
+   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+.church-tile:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 25px -10px rgba(0,0,0,0.15);
+}
+.church-tile:hover::after { 
+  transform: scaleX(1); 
+  height: 8px;
+}

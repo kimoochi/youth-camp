@@ -1,7 +1,7 @@
 export const CHURCHES = [
   { id: 'MIBC', name: 'Mactan Independent Baptist Church' },
   { id: 'QIBBC', name: 'Quiot Independent Bible Baptist Church' },
-  { id: 'CBBC', name: 'Consolacion Independent Baptist Church' },
+  { id: 'BBC-C', name: 'Bible Baptist Church Consolacion' },
   { id: 'GCBC', name: 'Gospel of Christ Baptist Church' },
 ] as const
 

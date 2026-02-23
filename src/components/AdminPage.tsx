@@ -67,7 +67,7 @@ function AdminPage({
         
         {/* Controls */}
         <section className="card">
-          <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'end'}}>
+          <div style={{display:'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', alignItems: 'end'}}>
              <div className="field-group">
                <label>Filter View</label>
                <select
@@ -83,7 +83,7 @@ function AdminPage({
              </div>
              
              <div className="actions" style={{margin:0}}>
-               <button className="primary" onClick={onAutoGroup}>Auto Group (Fixed 4)</button>
+               <button className="primary large" onClick={onAutoGroup}>Auto Group (Fixed 4)</button>
              </div>
           </div>
         </section>

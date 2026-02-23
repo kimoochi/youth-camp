@@ -1,6 +1,5 @@
-import type { FormEvent } from 'react'
 import { CHURCHES, getChurchName } from '../types'
-import type { ChurchId, Delegate, PaymentMethod } from '../types'
+import type { ChurchId, Delegate, Gender, DelegateCategory, TShirtSize, PaymentMethod } from '../types'
 import type { RegistrationFormState } from '../App'
 
 interface RegistrationPageProps {
@@ -8,31 +7,58 @@ interface RegistrationPageProps {
   selectedChurch: ChurchId | null
   delegates: Delegate[]
   bulkCount: number
-  setBulkCount: (n: number) => void
+  setBulkCount: (count: number) => void
   bulkForms: RegistrationFormState[]
   bulkPaymentMethod: PaymentMethod
-  setBulkPaymentMethod: (m: PaymentMethod) => void
+  setBulkPaymentMethod: (method: PaymentMethod) => void
   isBulkSubmitting: boolean
-  onUpdateBulkForm: (
-    index: number,
-    field: keyof RegistrationFormState,
-    value: RegistrationFormState[keyof RegistrationFormState]
-  ) => void
-  onConfirmBulkCount: (n: number) => void
+  onUpdateBulkForm: (index: number, field: keyof RegistrationFormState, value: any) => void
+  onConfirmBulkCount: (count: number) => void
   onStartBulk: () => void
-  onSubmitBulk: (e: FormEvent) => Promise<string[]> 
-  onSelectChurch: (church: ChurchId) => void
+  onSubmitBulk: (e: React.FormEvent) => void
+  onSelectChurch: (id: ChurchId) => void
   onBackToChurches: () => void
   onFinishRegistration: () => void
-  onGoToAdmin: () => void
   onGoHome: () => void
+  onGoToAdmin: () => void
   showAdminLogin: boolean
   adminPasswordInput: string
   adminPasswordError: string
-  onAdminPasswordChange: (v: string) => void
-  onSubmitAdminPassword: (e: FormEvent) => void
+  onAdminPasswordChange: (val: string) => void
+  onSubmitAdminPassword: (e: React.FormEvent) => void
   onCancelAdminLogin: () => void
-  showToast: (msg: string, type: 'success'|'error'|'info') => void
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void
+}
+
+const MONTHS = [
+  { val: '01', label: 'January' }, { val: '02', label: 'February' }, { val: '03', label: 'March' },
+  { val: '04', label: 'April' }, { val: '05', label: 'May' }, { val: '06', label: 'June' },
+  { val: '07', label: 'July' }, { val: '08', label: 'August' }, { val: '09', label: 'September' },
+  { val: '10', label: 'October' }, { val: '11', label: 'November' }, { val: '12', label: 'December' }
+]
+
+const range = (start: number, end: number) => Array.from({ length: end - start + 1 }, (_, i) => start + i)
+const DAYS = range(1, 31).map(d => d.toString().padStart(2, '0'))
+const currentYear = new Date().getFullYear()
+
+const previousYears = range(currentYear - 60, currentYear - 5)
+const additionalYears = range(2022, 2026)
+const allYears = [...new Set([...previousYears, ...additionalYears])].sort((a, b) => b - a)
+const YEARS = allYears.map(y => y.toString())
+
+const calculateAge = (birthday: string): string => {
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return ''
+  
+  const birthDate = new Date(birthday)
+  if (isNaN(birthDate.getTime())) return ''
+
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDifference = today.getMonth() - birthDate.getMonth()
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+    age--
+  }
+  return age >= 0 ? age.toString() : ''
 }
 
 function RegistrationPage({
@@ -52,295 +78,291 @@ function RegistrationPage({
   onSelectChurch,
   onBackToChurches,
   onFinishRegistration,
-  onGoToAdmin,
   onGoHome,
+  onGoToAdmin,
   showAdminLogin,
   adminPasswordInput,
   adminPasswordError,
   onAdminPasswordChange,
   onSubmitAdminPassword,
   onCancelAdminLogin,
-  showToast
 }: RegistrationPageProps) {
 
   const churchDelegates = delegates.filter(d => d.church === selectedChurch)
-  const currentChurchName = getChurchName(selectedChurch)
 
-  const GCASH_NUMBER = '09619605811'
+  const BirthdayPicker = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+    const [y, m, d] = value.split('-')
 
-  const isValidName = (v: string) => {
-    const s = v.trim()
-    if (s.length < 2 || s.length > 40) return false
-    return /^[A-Za-zÑñ][A-Za-zÑñ' -]*$/.test(s)
-  }
-
-  const getAgeFromBirthday = (birthdayIso: string) => {
-    const d = new Date(birthdayIso)
-    if (Number.isNaN(d.getTime())) return null
-    const today = new Date()
-    let age = today.getFullYear() - d.getFullYear()
-    const m = today.getMonth() - d.getMonth()
-    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1
-    return age
-  }
-
-  const validateBulkForms = () => {
-    for (let i = 0; i < bulkForms.length; i++) {
-      const f = bulkForms[i]
-      if (!isValidName(f.firstName)) return `Delegate ${i + 1}: First name must be letters only.`
-      if (!isValidName(f.lastName)) return `Delegate ${i + 1}: Last name must be letters only.`
-
-      const ageNum = Number(f.age)
-      if (!Number.isInteger(ageNum)) return `Delegate ${i + 1}: Age must be a whole number.`
-      if (ageNum < 0 || ageNum > 60) return `Delegate ${i + 1}: Age must be between 0 and 60.`
-
-      const bd = new Date(f.birthday)
-      const today = new Date()
-      if (Number.isNaN(bd.getTime())) return `Delegate ${i + 1}: Birthday is invalid.`
-      if (bd > today) return `Delegate ${i + 1}: Birthday cannot be in the future.`
-      if (bd.getFullYear() < 1950) return `Delegate ${i + 1}: Birthday year looks invalid.`
-
-      const computedAge = getAgeFromBirthday(f.birthday)
-      if (computedAge !== null && Math.abs(computedAge - ageNum) > 1) {
-        return `Delegate ${i + 1}: Age doesn't match birthday.`
-      }
-    }
-    return null
-  }
-
-  const sanitizeNameInput = (value: string) =>
-    value.replace(/[^A-Za-zÑñ' -]/g, '')
-
-  const sanitizeAgeInput = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 2)
-    if (!digits) return ''
-    let n = Number(digits)
-    if (Number.isNaN(n)) return ''
-    if (n < 0) n = 0
-    if (n > 60) n = 60
-    return String(n)
-  }
-
-  const handleFormSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (isBulkSubmitting) return
-    const validationError = validateBulkForms()
-    if (validationError) {
-      showToast(validationError, 'error')
-      return
+    const handleUpdate = (part: 'y' | 'm' | 'd', val: string) => {
+      const newDate = { y, m, d }
+      if (part === 'y') newDate.y = val
+      if (part === 'm') newDate.m = val
+      if (part === 'd') newDate.d = val
+      onChange(`${newDate.y || ''}-${newDate.m || ''}-${newDate.d || ''}`)
     }
 
-    await onSubmitBulk(e)
+    return (
+      <div className="birthday-select-group">
+        <select value={m || ''} onChange={e => handleUpdate('m', e.target.value)}>
+          <option value="" disabled>Month</option>
+          {MONTHS.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+        </select>
+        <select value={d || ''} onChange={e => handleUpdate('d', e.target.value)}>
+          <option value="" disabled>Day</option>
+          {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select value={y || ''} onChange={e => handleUpdate('y', e.target.value)}>
+          <option value="" disabled>Year</option>
+          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+    )
   }
 
   return (
-    <div className="page" style={{minHeight:'100vh'}}>
+    <div className="page">
       <header className="topbar">
-        <button type="button" className="topbar-home" onClick={onGoHome}>
-          <div className="camp-title">Youth Camp 2026</div>
-          <div className="camp-subtitle">Registration Portal</div>
+        <button className="topbar-home" onClick={onGoHome}>
+          <div className="camp-title">YOUTH CAMP 2026</div>
+          <div className="camp-subtitle">REGISTRATION PORTAL</div>
         </button>
-        <button className="topbar-button" onClick={onGoToAdmin}>Admin Access</button>
+        <button className="topbar-button" onClick={onGoToAdmin}>ADMIN ACCESS</button>
       </header>
 
       <main className="content">
-        {/* LOGIN MODAL */}
-        {showAdminLogin && (
-          <div className="modal-overlay">
-            <section className="card modal-card">
-              <h2>Admin Login</h2>
-              <form onSubmit={onSubmitAdminPassword}>
-                <input type="password" value={adminPasswordInput} onChange={e=>onAdminPasswordChange(e.target.value)} autoFocus placeholder="Enter Password" className="input-large" />
-                {adminPasswordError && <p className="error-text">{adminPasswordError}</p>}
-                <div className="actions right">
-                   <button type="button" className="ghost" onClick={onCancelAdminLogin}>Cancel</button>
-                   <button type="submit" className="primary">Login</button>
-                </div>
-              </form>
-            </section>
-          </div>
-        )}
-
-        {/* QR / reference modal removed – online payments handled via simple instructions only */}
-
-        {/* STEP 1 & 2 & 3 (Same as before) */}
-        {view === 'CHURCH_SELECT' && !showAdminLogin && (
-          <section className="card">
-            <h2>Select your Church</h2>
+        {view === 'CHURCH_SELECT' && (
+          <section className="centered-card">
+            <h2>SELECT YOUR CHURCH</h2>
             <p className="helper-text">Please select your participating church.</p>
             <div className="church-grid">
               {CHURCHES.map(c => (
-                <button key={c.id} className="church-tile" onClick={() => onSelectChurch(c.id)}>
-                  <span className="church-code" style={{fontSize: '1.2rem', color: '#1f2937'}}>{c.name}</span>
-                </button>
+                <div key={c.id} className="church-tile" onClick={() => onSelectChurch(c.id)}>
+                  <div className="church-code">{c.name}</div>
+                </div>
               ))}
             </div>
           </section>
         )}
 
-        {view === 'LIST' && selectedChurch && !showAdminLogin && (
-          <section className="card">
-            <div className="card-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
-              <div><h2>{currentChurchName}</h2><p className="helper-text" style={{marginBottom:0}}>{churchDelegates.length} Registered Delegates</p></div>
-              <button className="ghost small" onClick={onBackToChurches}>Change Church</button>
-            </div>
-            <div className="table-wrapper">
-               {churchDelegates.length === 0 ? (<div style={{padding:'2rem', textAlign:'center', color:'#6b7280'}}><p>No delegates registered yet.</p></div>) : (
-                 <table>
-                   <thead><tr><th>Name</th><th>Category</th><th>Status</th></tr></thead>
-                   <tbody>{churchDelegates.map(d => (<tr key={d.id}><td>{d.lastName}, {d.firstName}</td><td>{d.category}</td><td>{d.paymentStatus === 'PAID' ? <span className="badge success">PAID</span> : <span className="badge warn">UNPAID</span>}</td></tr>))}</tbody>
-                 </table>
-               )}
-            </div>
-            <div className="actions centered" style={{marginTop:'2rem'}}><button className="primary" style={{padding:'0.8rem 2rem', fontSize:'1rem'}} onClick={onStartBulk}>+ Register Delegates</button></div>
-          </section>
+        {view === 'LIST' && selectedChurch && (
+          <>
+            <section className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ margin: 0 }}>{getChurchName(selectedChurch)}</h2>
+                <button className="ghost small" onClick={onBackToChurches}>Change Church</button>
+              </div>
+              <p className="helper-text">There are {churchDelegates.length} delegates registered from your church.</p>
+              <button className="primary large" onClick={onStartBulk}>Register New Delegates</button>
+            </section>
+
+            {churchDelegates.length > 0 && (
+              <section className="card">
+                <h3>Registered Delegates</h3>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {churchDelegates.sort((a, b) => a.lastName.localeCompare(b.lastName)).map(d => (
+                        <tr key={d.id}>
+                          <td style={{ fontWeight: 700 }}>{d.lastName}, {d.firstName}</td>
+                          <td>{d.category}</td>
+                          <td>
+                            <span className={`badge ${d.paymentStatus === 'PAID' ? 'success' : 'warn'}`}>
+                              {d.paymentStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        {view === 'SETUP_BULK' && !showAdminLogin && (
+        {view === 'SETUP_BULK' && (
           <section className="card centered-card">
-            <h2>Registration Count</h2><p className="helper-text">How many delegates are you registering now?</p>
-            <div className="counter-input"><button className="counter-btn" onClick={() => setBulkCount(Math.max(1, bulkCount - 1))}>-</button><span className="counter-val">{bulkCount}</span><button className="counter-btn" onClick={() => setBulkCount(Math.min(10, bulkCount + 1))}>+</button></div>
-            <div className="actions centered"><button className="ghost" onClick={onFinishRegistration}>Cancel</button><button className="primary" onClick={() => onConfirmBulkCount(bulkCount)}>Next Step</button></div>
+            <h2>How many delegates?</h2>
+            <p className="helper-text">Enter the number of people you want to register at once.</p>
+
+            <div className="counter-input">
+              <button className="counter-btn" onClick={() => setBulkCount(Math.max(1, bulkCount - 1))}>−</button>
+              <div className="counter-val">{bulkCount}</div>
+              <button className="counter-btn" onClick={() => setBulkCount(Math.min(20, bulkCount + 1))}>+</button>
+            </div>
+
+            <div className="actions centered">
+              <button className="ghost" onClick={() => onFinishRegistration()}>Cancel</button>
+              <button className="primary" onClick={() => onConfirmBulkCount(bulkCount)}>Continue</button>
+            </div>
           </section>
         )}
 
-        {/* STEP 4: BULK FORM (UPDATED WITH GENDER) */}
-        {view === 'BULK_FORM' && selectedChurch && !showAdminLogin && (
-          <form onSubmit={handleFormSubmit} className="bulk-container">
-             <div className="card" style={{position:'sticky', top: '80px', zIndex:40, borderLeft: '4px solid var(--primary)'}}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                   <div style={{display:'flex', alignItems:'center', gap:'10px'}}><h2 style={{margin:0}}>Registering {bulkForms.length} Delegates</h2><span className="badge" style={{background:'var(--black)', color:'var(--primary)'}}>BATCH ENTRY</span></div>
-                   <button type="button" className="ghost small" onClick={onFinishRegistration}>Cancel</button>
-                </div>
-                <div style={{marginTop: '1rem', padding: '1rem', background: '#FFFBEB', borderRadius: '6px', border: '1px solid #FCD34D'}}>
-                  <h3 style={{fontSize: '1rem', marginBottom: '0.5rem', color: '#B45309'}}>Registration Fee: ₱600.00 / head</h3>
-                  <p style={{margin:0, fontSize: '0.9rem', color: '#78350F'}}>Includes accommodation, meals, materials, and a <strong>free T-Shirt (valued at ₱180)</strong>.</p>
-                </div>
-             </div>
+        {view === 'BULK_FORM' && (
+          <form onSubmit={onSubmitBulk} className="bulk-container">
+            <section className="card">
+              <h2 style={{ margin: 0 }}>REGISTRATION FORM</h2>
+              <p className="helper-text" style={{ lineHeight: 1.6 }}>
+                Fill in the details for {bulkForms.length} delegate(s).
+                <br /><br />
+                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Registration Fee: ₱600.00 / head</span><br />
+                <small>Includes accommodation, meals, materials, and a free T-Shirt (valued at ₱180).</small>
+              </p>
+            </section>
 
-             <div className="bulk-forms-grid">
-               {bulkForms.map((form, index) => (
-                 <div key={index} className="delegate-form-card">
-                    <div className="form-card-title">Delegate {index + 1}</div>
-                    <div className="form-grid-compact">
-                      <div className="field-group half">
-                        <label>First Name</label>
-                        <input
-                          required
-                          value={form.firstName}
-                          onChange={e=>onUpdateBulkForm(index, 'firstName', sanitizeNameInput(e.target.value))}
-                          placeholder="First Name"
-                          autoComplete="given-name"
-                          inputMode="text"
-                        />
-                      </div>
-                      <div className="field-group half">
-                        <label>Last Name</label>
-                        <input
-                          required
-                          value={form.lastName}
-                          onChange={e=>onUpdateBulkForm(index, 'lastName', sanitizeNameInput(e.target.value))}
-                          placeholder="Last Name"
-                          autoComplete="family-name"
-                          inputMode="text"
-                        />
-                      </div>
-                      <div className="field-group quarter">
-                        <label>Age</label>
-                        <input
-                          type="number"
-                          required
-                          min={0}
-                          max={60}
-                          step={1}
-                          value={form.age}
-                          onChange={e=>onUpdateBulkForm(index, 'age', sanitizeAgeInput(e.target.value))}
-                          placeholder="0"
-                          inputMode="numeric"
-                        />
-                      </div>
-                      {/* ADDED GENDER FIELD HERE */}
-                      <div className="field-group quarter">
-                        <label>Gender</label>
-                        <select value={form.gender} onChange={e=>onUpdateBulkForm(index, 'gender', e.target.value)}>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
-                      </div>
-                      <div className="field-group third">
-                        <label>Birthday</label>
-                        <input
-                          type="date"
-                          required
-                          value={form.birthday}
-                          max={new Date().toISOString().slice(0, 10)}
-                          min="1950-01-01"
-                          onFocus={(e) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                          onChange={e=>onUpdateBulkForm(index, 'birthday', e.target.value)}
-                        />
-                      </div>
-                      <div className="field-group third">
-                        <label>Category</label>
-                        <select value={form.category} onChange={e=>onUpdateBulkForm(index, 'category', e.target.value)}>
-                          <option>High School (JHS)</option>
-                          <option>High School (SHS)</option>
-                          <option>College</option>
-                          <option>Young Professional</option>
-                        </select>
-                      </div>
-                      <div className="field-group quarter">
-                        <label>Size</label>
-                        <select value={form.tshirtSize} onChange={e=>onUpdateBulkForm(index, 'tshirtSize', e.target.value)}>
-                          <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
-                        </select>
-                      </div>
+            <div className="bulk-forms-grid">
+              {bulkForms.map((form, idx) => (
+                <div key={idx} className="delegate-form-card">
+                  <div className="form-card-title">Delegate #{idx + 1}</div>
+                  <div className="form-grid-compact">
+                    <div className="field-group half">
+                      <label>Last Name</label>
+                      <input required value={form.lastName} onChange={e => onUpdateBulkForm(idx, 'lastName', e.target.value)} placeholder="e.g. Dela Cruz" />
                     </div>
-                 </div>
-               ))}
-             </div>
+                    <div className="field-group half">
+                      <label>First Name</label>
+                      <input required value={form.firstName} onChange={e => onUpdateBulkForm(idx, 'firstName', e.target.value)} placeholder="e.g. Juan" />
+                    </div>
 
-             <div className="card payment-card">
-               <h3>Payment Method</h3>
-               <p className="helper-text" style={{marginBottom:'0.5rem'}}>Select a payment method for this entire batch.</p>
-               <div className="radio-group">
-                  <label className={`radio-tile ${bulkPaymentMethod === 'ONLINE' ? 'selected' : ''}`}><input type="radio" name="pay" checked={bulkPaymentMethod === 'ONLINE'} onChange={() => setBulkPaymentMethod('ONLINE')} /><span>Pay Online (GCash)</span></label>
-                  <label className={`radio-tile ${bulkPaymentMethod === 'ONSITE' ? 'selected' : ''}`}><input type="radio" name="pay" checked={bulkPaymentMethod === 'ONSITE'} onChange={() => setBulkPaymentMethod('ONSITE')} /><span>Pay On-Site (Cash)</span></label>
-               </div>
-             </div>
+                    <div className="field-group third">
+                      <label>Birthday</label>
+                      <BirthdayPicker 
+                        value={form.birthday} 
+                        onChange={(val) => {
+                          onUpdateBulkForm(idx, 'birthday', val)
+                          const age = calculateAge(val)
+                          if (age) {
+                            onUpdateBulkForm(idx, 'age', age)
+                          }
+                        }}
+                      />
+                    </div>
 
-             <div className="actions right fixed-footer">
-               <button type="submit" className="primary large" disabled={isBulkSubmitting}>
-                 {isBulkSubmitting ? 'Submitting...' : `Submit All ${bulkForms.length} Registrations`}
-               </button>
-             </div>
+                    <div className="field-group third">
+                      <label>Age</label>
+                      <input required type="number" value={form.age} onChange={()=>{}} placeholder="0" readOnly />
+                    </div>
+
+                    <div className="field-group third">
+                      <label>Gender</label>
+                      <select value={form.gender} onChange={e => onUpdateBulkForm(idx, 'gender', e.target.value as Gender)}>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+
+                    <div className="field-group half">
+                      <label>Category</label>
+                      <select value={form.category} onChange={e => onUpdateBulkForm(idx, 'category', e.target.value as DelegateCategory)}>
+                        <option value="High School (JHS)">High School (JHS)</option>
+                        <option value="High School (SHS)">High School (SHS)</option>
+                        <option value="College">College</option>
+                        <option value="Young Professional">Young Professional</option>
+                      </select>
+                    </div>
+
+                    <div className="field-group half">
+                      <label>T-Shirt Size</label>
+                      <select value={form.tshirtSize} onChange={e => onUpdateBulkForm(idx, 'tshirtSize', e.target.value as TShirtSize)}>
+                        <option value="XS">Extra Small (XS)</option>
+                        <option value="S">Small (S)</option>
+                        <option value="M">Medium (M)</option>
+                        <option value="L">Large (L)</option>
+                        <option value="XL">Extra Large (XL)</option>
+                        <option value="XXL">2XL</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <section className="card payment-card">
+              <h3>Payment Method</h3>
+              <p className="helper-text" style={{ marginBottom: '1.5rem' }}>Select how you'll pay for the registration fee.</p>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className={`radio-tile ${bulkPaymentMethod === 'ONSITE' ? 'selected' : ''}`} onClick={() => setBulkPaymentMethod('ONSITE')}>
+                  <input type="radio" checked={bulkPaymentMethod === 'ONSITE'} readOnly />
+                  On-site (Upon Arrival)
+                </div>
+                <div className={`radio-tile ${bulkPaymentMethod === 'ONLINE' ? 'selected' : ''}`} onClick={() => setBulkPaymentMethod('ONLINE')}>
+                  <input type="radio" checked={bulkPaymentMethod === 'ONLINE'} readOnly />
+                  Online (GCash)
+                </div>
+              </div>
+            </section>
+
+            <div className="actions centered" style={{ padding: '2rem 0 4rem' }}>
+              <button type="button" className="ghost" onClick={() => onFinishRegistration()}>Cancel</button>
+              <button type="submit" className="primary" disabled={isBulkSubmitting}>
+                {isBulkSubmitting ? 'Registering...' : `Submit ${bulkForms.length} Registration(s)`}
+              </button>
+            </div>
           </form>
         )}
 
-        {view === 'SUCCESS' && !showAdminLogin && (
-          <section className="card centered-card">
-            <div style={{fontSize:'3rem', marginBottom:'1rem'}}>✅</div>
-            <h2>Registration Successful!</h2>
-            <p style={{marginBottom:'2rem'}}>Successfully registered {bulkForms.length} delegates.</p>
-            {bulkPaymentMethod === 'ONLINE' ? (
-              <div style={{background:'#f9fafb', padding:'1.5rem', borderRadius:'8px', marginBottom:'2rem'}}>
-                <p><strong>Online Payment Instructions</strong></p>
-                <p style={{marginBottom:'0.5rem'}}>
-                  Total amount is <strong>₱{bulkForms.length * 600}</strong> according to the delegates you registered.
-                </p>
-                <p style={{marginBottom:'0.5rem'}}>
-                  Please send your payment to GCash number <strong>{GCASH_NUMBER}</strong>.
-                </p>
-                <p className="helper-text">
-                  After paying, send a message on Messenger to <strong>Aldo Yu</strong> with your church name and number of delegates.
-                </p>
+        {view === 'SUCCESS' && (
+          bulkPaymentMethod === 'ONLINE' ? (
+            <section className="card centered-card" style={{ padding: '3rem 2rem' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+              <h2 style={{ textTransform: 'uppercase', fontWeight: 900, marginBottom: '0.5rem' }}>Registration Successful!</h2>
+              <p className="helper-text" style={{ marginBottom: '2rem' }}>
+                Successfully registered {bulkForms.length} delegate{bulkForms.length > 1 ? 's' : ''}.
+              </p>
+              
+              <div className="online-payment-card">
+                <h3 style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '1rem', marginBottom: '1.5rem' }}>Online Payment Instructions</h3>
+                <p className="helper-text" style={{ margin: 0 }}>Total amount is <strong style={{ fontSize: '1.2em' }}>₱{bulkForms.length * 600}</strong> according to the delegates you registered.</p>
+                <p className="helper-text" style={{ marginTop: '1.5rem' }}>Please send your payment to GCash number <strong style={{ fontSize: '1.2em', color: 'var(--accent)' }}>09619605811</strong>.</p>
+                <p className="helper-text" style={{ marginTop: '1rem' }}>After paying, send a message on Messenger to <strong style={{ color: 'var(--accent)' }}>Aldo Yu</strong> with your church name and number of delegates.</p>
               </div>
-            ) : (
-              <p className="helper-text">Your total payment is: ₱{bulkForms.length * 600}.</p>
-            )}
-            <button className="primary" onClick={onFinishRegistration}>Back to Delegate List</button>
-          </section>
+
+              <button className="primary large" onClick={onFinishRegistration} style={{ marginTop: '2rem' }}>BACK TO DELEGATE LIST</button>
+            </section>
+          ) : (
+            <section className="card centered-card" style={{ padding: '4rem 2rem' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+              <h2>Registration Submitted!</h2>
+              <p className="helper-text">
+                Thank you for registering. Please proceed to the payment counter to complete your registration.
+              </p>
+              <button className="primary large" onClick={onFinishRegistration}>Back to List</button>
+            </section>
+          )
         )}
+
       </main>
+
+      {showAdminLogin && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Admin Access</h3>
+            <p className="helper-text">Enter password to access dashboard.</p>
+            <form onSubmit={onSubmitAdminPassword}>
+              <input
+                type="password"
+                className="input-large"
+                placeholder="••••••••"
+                autoFocus
+                value={adminPasswordInput}
+                onChange={(e) => onAdminPasswordChange(e.target.value)}
+              />
+              {adminPasswordError && <p className="error-text">{adminPasswordError}</p>}
+              <div className="actions centered">
+                <button type="button" className="ghost" onClick={onCancelAdminLogin}>Cancel</button>
+                <button type="submit" className="primary">Login</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
