@@ -12,7 +12,7 @@ export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {
   doc.setFontSize(18)
   doc.text('YOUTH CAMP 2026', 14, 20)
   doc.setFontSize(14)
-  doc.text(`${group.name}`, 14, 30)
+  doc.text(`Group: ${group.name}`, 14, 30)
   doc.setFontSize(10)
   doc.text(`Total Members: ${members.length}`, 14, 36)
 
@@ -62,28 +62,17 @@ export const generateIDCards = (delegates: Delegate[], groups: Group[], groupId?
   const targetGroups = groupId ? groups.filter(g => g.id === groupId) : groups
 
   const toPrint: IdCardEntry[] = targetGroups.flatMap(g => {
-    const leader = g.leaderId ? delegates.find(d => d.id === g.leaderId) : undefined
-    const assistant = g.assistantLeaderId ? delegates.find(d => d.id === g.assistantLeaderId) : undefined
     const members = g.delegateIds
       .map(id => delegates.find(d => d.id === id))
       .filter((d): d is Delegate => !!d)
 
-    const entries: IdCardEntry[] = []
-    if (leader) entries.push({ delegate: leader, role: 'GROUP LEADER', groupName: g.name })
-    if (assistant) entries.push({ delegate: assistant, role: 'ASSISTANT LEADER', groupName: g.name })
-    members.forEach(d => {
-      // Don't add if already a leader
-      if (d.id !== leader?.id && d.id !== assistant?.id) {
-        entries.push({ delegate: d, role: null, groupName: g.name })
-      }
-    })
-    return entries
+    return members.map(d => ({ delegate: d, role: null, groupName: g.name }))
   })
 
   let count = 0, x = 15, y = 20
   const mx = 15, my = 20, w = 88, h = 55, gx = 4, gy = 4
 
-  toPrint.forEach(({ delegate: d, role, groupName }) => {
+  toPrint.forEach(({ delegate: d, groupName }) => {
     doc.setDrawColor(209, 213, 219); doc.setLineWidth(0.5)
     doc.rect(x, y, w, h)
 
@@ -101,17 +90,9 @@ export const generateIDCards = (delegates: Delegate[], groups: Group[], groupId?
     doc.text(groupName.toUpperCase(), x + w/2, y + 33, { align: 'center' })
 
     doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 114, 128)
-      const cName = getChurchName(d.church)
+    const cName = getChurchName(d.church)
     doc.text(cName.length > 30 ? cName.substring(0,30)+'...' : cName, x + w/2, y + 41, { align: 'center' })
     doc.text(`${d.category} • Age: ${d.age}`, x + w/2, y + 46, { align: 'center' })
-
-    if (role) {
-      doc.setFillColor(role === 'GROUP LEADER' ? 234 : 250, role === 'GROUP LEADER' ? 88 : 204, 12)
-      doc.rect(x, y + h - 8, w, 8, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(8); doc.setFont('helvetica', 'bold')
-      doc.text(role, x + w/2, y + h - 3, { align: 'center' })
-    }
 
     count++
     if (count % 2 === 1) { x += w + gx } else { x = mx; y += h + gy }
