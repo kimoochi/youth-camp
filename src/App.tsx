@@ -4,7 +4,7 @@ import RegistrationPage from './components/RegistrationPage'
 import AdminPage from './components/AdminPage'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
-import type { ChurchId, Delegate, Group, DelegateCategory, TShirtSize, Mode, PaymentMethod, Gender } from './types'
+import type { ChurchId, Delegate, Group, Mode, PaymentMethod, RegistrationFormState } from './types'
 import { generateIDCards } from './utils/pdfGenerator'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { 
@@ -15,16 +15,6 @@ import {
   removeDelegateFromGroup, 
   renameGroupInFirestore 
 } from './services/firestoreService'
-
-export interface RegistrationFormState {
-  lastName: string
-  firstName: string
-  age: string
-  gender: Gender // New Field
-  birthday: string
-  category: DelegateCategory
-  tshirtSize: TShirtSize
-}
 
 type ToastType = { message: string, type: 'success' | 'error' | 'info', id: number }
 
@@ -165,6 +155,15 @@ function App() {
     } catch { showToast('No delegates to print', 'error') }
   }
 
+  const handleRenameGroup = async (groupId: string, newName: string) => {
+    try {
+      await renameGroupInFirestore(groupId, newName);
+      showToast('Group renamed successfully', 'success');
+    } catch {
+      showToast('Failed to rename group', 'error');
+    }
+  };
+
   return (
     <div className="page">
       <div className="toast-container">
@@ -238,7 +237,6 @@ function App() {
               onAdminPasswordChange={setAdminPasswordInput}
               onSubmitAdminPassword={handleAdminLogin}
               onCancelAdminLogin={() => setShowAdminLogin(false)}
-              showToast={showToast}
             />
           }
         />
@@ -294,7 +292,6 @@ function App() {
                 onAdminPasswordChange={setAdminPasswordInput}
                 onSubmitAdminPassword={handleAdminLogin}
                 onCancelAdminLogin={() => setShowAdminLogin(false)}
-                showToast={showToast}
               />
             ) : (
               <Navigate to="/" replace />
@@ -307,12 +304,10 @@ function App() {
             isAdminUnlocked ? (
               <AdminPage
                 delegates={delegates}
-                paidDelegates={paidDelegates}
                 unpaidDelegates={unpaidDelegates}
                 groups={groups}
                 unassignedPaidDelegates={unassignedPaidDelegates}
                 adminChurchFilter={adminChurchFilter}
-                groupCount={groupCount}
                 onSetAdminChurchFilter={setAdminChurchFilter}
                 onAutoGroup={handleAutoGroup}
                 onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
@@ -320,12 +315,11 @@ function App() {
                 onDropToGroup={async (gid) => { if(draggedDelegateId) { await moveDelegateToGroup(draggedDelegateId, gid, delegates); setDraggedDelegateId(null); showToast('Moved to group', 'success') }}}
                 onDragStart={setDraggedDelegateId}
                 onPrintIDs={handlePrintIDs}
-                onRenameGroup={renameGroupInFirestore}
+                onRenameGroup={handleRenameGroup}
                 onGoToRegistration={() => {
                   setMode('registration')
                   navigate('/')
                 }}
-                showToast={showToast}
               />
             ) : (
               <Navigate to="/" replace />
