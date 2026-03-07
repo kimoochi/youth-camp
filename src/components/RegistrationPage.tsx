@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { CHURCHES, getChurchName } from '../types';
 import type { ChurchId, Delegate, RegistrationFormState, PaymentMethod } from '../types';
 import DelegateForm from './DelegateForm';
@@ -45,17 +44,12 @@ interface RegistrationPageProps {
 
 function RegistrationPage(props: RegistrationPageProps) {
   const {
-    view, selectedChurch, delegates, bulkCount, setBulkCount, bulkForms,
+    view, selectedChurch, bulkCount, setBulkCount, bulkForms,
     bulkPaymentMethod, setBulkPaymentMethod, isBulkSubmitting, onUpdateBulkForm,
     onConfirmBulkCount, onStartBulk, onSubmitBulk, onSelectChurch, onBackToChurches,
     onFinishRegistration, onGoHome, onGoToAdmin, showAdminLogin, adminPasswordInput,
     adminPasswordError, onAdminPasswordChange, onSubmitAdminPassword, onCancelAdminLogin,
   } = props;
-
-  const churchDelegates = useMemo(() =>
-    delegates.filter(d => d.church === selectedChurch).sort((a, b) => a.lastName.localeCompare(b.lastName)),
-    [delegates, selectedChurch]
-  );
 
   const renderView = () => {
     switch (view) {
