@@ -76,46 +76,15 @@ function RegistrationPage(props: RegistrationPageProps) {
 
       case 'LIST':
         return selectedChurch && (
-          <>
-            <section className="card registration-card">
-              <div className="registration-header">
-                <h2>{getChurchName(selectedChurch)}</h2>
-                <button className="ghost small" onClick={onBackToChurches}>Change Church</button>
-              </div>
-              <p className="helper-text">There are {churchDelegates.length} delegates registered from your church.</p>
-              <button className="primary large" onClick={onStartBulk}>Register New Delegates</button>
-            </section>
-
-            {churchDelegates.length > 0 && (
-              <section className="card">
-                <h3>Registered Delegates</h3>
-                <div className="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {churchDelegates.map(d => (
-                        <tr key={d.id}>
-                          <td className="delegate-name-cell">{d.lastName}, {d.firstName}</td>
-                          <td>{d.category}</td>
-                          <td>
-                            <span className={`badge ${d.paymentStatus === 'PAID' ? 'success' : 'danger'}`}>
-                              {d.paymentStatus}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
-          </>
+          <section className="card registration-card">
+            <div className="registration-header">
+              <h2>{getChurchName(selectedChurch)}</h2>
+              <button className="ghost small" onClick={onBackToChurches}>Change Church</button>
+            </div>
+            <div className="actions centered">
+              <button className="primary" onClick={onStartBulk}>Register New Delegates</button>
+            </div>
+          </section>
         );
 
       case 'SETUP_BULK':
