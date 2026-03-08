@@ -181,7 +181,7 @@ function App() {
     if (window.confirm('Are you sure you want to delete this delegate?')) {
       try {
         await deleteDelegateFromFirestore(delegateId);
-        await removeDelegateFromGroup(delegateId); // Also remove from any group
+        await removeDelegateFromGroup(delegateId);
         showToast('Delegate deleted successfully', 'success');
       } catch {
         showToast('Failed to delete delegate', 'error');
@@ -236,6 +236,23 @@ function App() {
     } catch {
       showToast('Failed to mark as unpaid.', 'error');
     }
+  };
+  
+  const handleMarkMultipleAsPaid = async (delegatesToUpdate: Delegate[]): Promise<boolean> => {
+    if (delegatesToUpdate.length === 0) return false;
+
+    if (window.confirm(`Are you sure you want to mark ${delegatesToUpdate.length} delegates as paid?`)) {
+      try {
+        await Promise.all(
+          delegatesToUpdate.map(d => toggleDelegatePayment(d.id, 'UNPAID', groups))
+        );
+        return true;
+      } catch (error) {
+        console.error("Failed to mark delegates as paid:", error);
+        return false;
+      }
+    }
+    return false;
   };
 
   return (
@@ -397,6 +414,7 @@ function App() {
                 onAutoGroup={handleAutoGroup}
                 onMoveToUnassigned={handleMoveToUnassigned}
                 onMarkAsUnpaid={handleMarkAsUnpaid}
+                onMarkMultipleAsPaid={handleMarkMultipleAsPaid}
                 onGoToRegistration={() => {
                   setMode('registration')
                   navigate('/')

@@ -25,6 +25,7 @@ interface AdminPageProps {
   onAutoGroup: () => void;
   onMoveToUnassigned: (delegateId: string) => void;
   onMarkAsUnpaid: (delegateId: string) => void;
+  onMarkMultipleAsPaid: (delegates: Delegate[]) => Promise<boolean>;
 }
 
 type AdminView = 'groups' | 'unassigned' | 'unpaid';
@@ -34,7 +35,8 @@ function AdminPage(props: AdminPageProps) {
     delegates, unpaidDelegates, groups, unassignedPaidDelegates,
     adminChurchFilter, onSetAdminChurchFilter, onTogglePayment,
     onDropToLate, onDropToGroup, onDragStart, onPrintIDs, onPrintTShirts, onEditDelegate, onDeleteDelegate, onGoToRegistration,
-    onRenameGroup, onAutoGroup, onMoveToUnassigned, onMarkAsUnpaid
+    onRenameGroup, onAutoGroup, onMoveToUnassigned, onMarkAsUnpaid,
+    onMarkMultipleAsPaid
   } = props;
 
   const [view, setView] = useState<AdminView>('groups');
@@ -51,7 +53,7 @@ function AdminPage(props: AdminPageProps) {
       case 'unassigned':
         return <UnassignedView unassignedPaidDelegates={unassignedPaidDelegates} onDropToLate={onDropToLate} onDragStart={onDragStart} onTogglePayment={onTogglePayment} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} />;
       case 'unpaid':
-        return <UnpaidView unpaidDelegates={visibleUnpaid} onTogglePayment={onTogglePayment} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} />;
+        return <UnpaidView unpaidDelegates={visibleUnpaid} onTogglePayment={onTogglePayment} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} onMarkAllAsPaid={() => onMarkMultipleAsPaid(visibleUnpaid)} />;
       default:
         return null;
     }

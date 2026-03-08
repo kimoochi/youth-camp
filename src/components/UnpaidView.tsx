@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Delegate } from '../types';
 import { getChurchName } from '../types';
 
@@ -7,12 +7,49 @@ interface UnpaidViewProps {
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void;
   onEditDelegate: (delegate: Delegate) => void;
   onDeleteDelegate: (delegateId: string) => void;
+  onMarkAllAsPaid: () => Promise<boolean>;
 }
 
-const UnpaidView: React.FC<UnpaidViewProps> = ({ unpaidDelegates, onTogglePayment, onEditDelegate, onDeleteDelegate }) => {
+type ButtonState = 'idle' | 'loading' | 'success' | 'error';
+
+const UnpaidView: React.FC<UnpaidViewProps> = ({ unpaidDelegates, onTogglePayment, onEditDelegate, onDeleteDelegate, onMarkAllAsPaid }) => {
+  const [buttonState, setButtonState] = useState<ButtonState>('idle');
+
+  const handleMarkAllClick = async () => {
+    setButtonState('loading');
+    const success = await onMarkAllAsPaid();
+    if (success) {
+      setButtonState('success');
+      setTimeout(() => setButtonState('idle'), 2000); // Revert after 2s
+    } else {
+      setButtonState('error');
+      setTimeout(() => setButtonState('idle'), 2000); // Revert after 2s
+    }
+  };
+
+  const getButtonContent = () => {
+    switch (buttonState) {
+      case 'loading':
+        return 'Marking...';
+      case 'success':
+        return 'Done! ✅';
+      case 'error':
+        return 'Error! ⚠️';
+      default:
+        return 'Mark All as Paid';
+    }
+  };
+
   return (
     <section className="card">
-      <h3 className="view-title">Unpaid ({unpaidDelegates.length})</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 className="view-title">Unpaid ({unpaidDelegates.length})</h3>
+        {unpaidDelegates.length > 0 && (
+          <button className="primary" onClick={handleMarkAllClick} disabled={buttonState !== 'idle'}>
+            {getButtonContent()}
+          </button>
+        )}
+      </div>
       <div className="table-wrapper-container">
         {unpaidDelegates.map(d => (
           <div key={d.id} className="delegate-card-unpaid">
