@@ -12,14 +12,19 @@ interface AdminPageProps {
   unassignedPaidDelegates: Delegate[];
   adminChurchFilter: ChurchId | 'ALL';
   onSetAdminChurchFilter: (val: ChurchId | 'ALL') => void;
-  onAutoGroup: () => void;
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void;
   onDropToLate: () => void;
   onDropToGroup: (groupId: string) => void;
   onDragStart: (id: string) => void;
   onPrintIDs: (groupId?: string) => void;
+  onPrintTShirts: () => void;
+  onEditDelegate: (delegate: Delegate) => void;
+  onDeleteDelegate: (delegateId: string) => void;
   onGoToRegistration: () => void;
   onRenameGroup: (groupId: string, newName: string) => void;
+  onAutoGroup: () => void;
+  onMoveToUnassigned: (delegateId: string) => void;
+  onMarkAsUnpaid: (delegateId: string) => void;
 }
 
 type AdminView = 'groups' | 'unassigned' | 'unpaid';
@@ -27,9 +32,9 @@ type AdminView = 'groups' | 'unassigned' | 'unpaid';
 function AdminPage(props: AdminPageProps) {
   const {
     delegates, unpaidDelegates, groups, unassignedPaidDelegates,
-    adminChurchFilter, onSetAdminChurchFilter, onAutoGroup, onTogglePayment,
-    onDropToLate, onDropToGroup, onDragStart, onPrintIDs, onGoToRegistration,
-    onRenameGroup
+    adminChurchFilter, onSetAdminChurchFilter, onTogglePayment,
+    onDropToLate, onDropToGroup, onDragStart, onPrintIDs, onPrintTShirts, onEditDelegate, onDeleteDelegate, onGoToRegistration,
+    onRenameGroup, onAutoGroup, onMoveToUnassigned, onMarkAsUnpaid
   } = props;
 
   const [view, setView] = useState<AdminView>('groups');
@@ -42,11 +47,11 @@ function AdminPage(props: AdminPageProps) {
   const renderContent = () => {
     switch (view) {
       case 'groups':
-        return <GroupView groups={groups} delegates={delegates} onDropToGroup={onDropToGroup} onDragStart={onDragStart} onPrintIDs={onPrintIDs} onRenameGroup={onRenameGroup} />;
+        return <GroupView groups={groups} delegates={delegates} onDropToGroup={onDropToGroup} onDragStart={onDragStart} onPrintIDs={onPrintIDs} onRenameGroup={onRenameGroup} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} onMoveToUnassigned={onMoveToUnassigned} onMarkAsUnpaid={onMarkAsUnpaid} />;
       case 'unassigned':
-        return <UnassignedView unassignedPaidDelegates={unassignedPaidDelegates} onDropToLate={onDropToLate} onDragStart={onDragStart} onTogglePayment={onTogglePayment} />;
+        return <UnassignedView unassignedPaidDelegates={unassignedPaidDelegates} onDropToLate={onDropToLate} onDragStart={onDragStart} onTogglePayment={onTogglePayment} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} />;
       case 'unpaid':
-        return <UnpaidView unpaidDelegates={visibleUnpaid} onTogglePayment={onTogglePayment} />;
+        return <UnpaidView unpaidDelegates={visibleUnpaid} onTogglePayment={onTogglePayment} onEditDelegate={onEditDelegate} onDeleteDelegate={onDeleteDelegate} />;
       default:
         return null;
     }
@@ -76,7 +81,8 @@ function AdminPage(props: AdminPageProps) {
               </select>
             </div>
             <div className="actions">
-              <button className="primary large" onClick={onAutoGroup}>Auto Group (Fixed 4)</button>
+              <button className="ghost" onClick={onAutoGroup}>Auto Group (4)</button>
+              <button className="primary" onClick={onPrintTShirts}>Print T-Shirts</button>
             </div>
           </div>
         </section>

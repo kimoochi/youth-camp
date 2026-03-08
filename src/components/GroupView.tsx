@@ -7,10 +7,16 @@ interface GroupViewProps {
   onDropToGroup: (groupId: string) => void;
   onDragStart: (id: string) => void;
   onPrintIDs: (groupId?: string) => void;
-  onRenameGroup: (groupId: string, newName: string) => void; // New prop
+  onRenameGroup: (groupId: string, newName: string) => void;
+  onEditDelegate: (delegate: Delegate) => void;
+  onDeleteDelegate: (delegateId: string) => void;
+  onMoveToUnassigned: (delegateId: string) => void;
+  onMarkAsUnpaid: (delegateId: string) => void;
 }
 
-const GroupView: React.FC<GroupViewProps> = ({ groups, delegates, onDropToGroup, onDragStart, onPrintIDs, onRenameGroup }) => {
+const GroupView: React.FC<GroupViewProps> = ({ 
+  groups, delegates, onDropToGroup, onDragStart, onPrintIDs, onRenameGroup, onEditDelegate, onDeleteDelegate, onMoveToUnassigned, onMarkAsUnpaid 
+}) => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
@@ -71,6 +77,12 @@ const GroupView: React.FC<GroupViewProps> = ({ groups, delegates, onDropToGroup,
                         <div>
                           <div className="delegate-name">{d.lastName}, {d.firstName}</div>
                           <div className="delegate-meta">{d.age} • {d.gender} • {d.church}</div>
+                        </div>
+                        <div className="delegate-actions">
+                          <button className="ghost small" onClick={(e) => { e.stopPropagation(); onEditDelegate(d); }}>Edit</button>
+                          <button className="ghost small" onClick={(e) => { e.stopPropagation(); onMoveToUnassigned(d.id); }}>Unassign</button>
+                          <button className="ghost small" onClick={(e) => { e.stopPropagation(); onMarkAsUnpaid(d.id); }}>Set Unpaid</button>
+                          <button className="ghost small danger" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>Delete</button>
                         </div>
                       </div>
                     ) : null;

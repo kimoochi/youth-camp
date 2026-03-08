@@ -7,9 +7,11 @@ interface UnassignedViewProps {
   onDropToLate: () => void;
   onDragStart: (id: string) => void;
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void;
+  onEditDelegate: (delegate: Delegate) => void;
+  onDeleteDelegate: (delegateId: string) => void;
 }
 
-const UnassignedView: React.FC<UnassignedViewProps> = ({ unassignedPaidDelegates, onDropToLate, onDragStart, onTogglePayment }) => {
+const UnassignedView: React.FC<UnassignedViewProps> = ({ unassignedPaidDelegates, onDropToLate, onDragStart, onTogglePayment, onEditDelegate, onDeleteDelegate }) => {
   return (
     <section className="card" onDragOver={e => e.preventDefault()} onDrop={onDropToLate}>
       <h3 className="view-title">Late / Unassigned ({unassignedPaidDelegates.length})</h3>
@@ -20,7 +22,11 @@ const UnassignedView: React.FC<UnassignedViewProps> = ({ unassignedPaidDelegates
               <div className="delegate-name">{d.lastName}, {d.firstName}</div>
               <div className="delegate-meta">{getChurchName(d.church)} • {d.age}yo</div>
             </div>
-            <button className="ghost small" onClick={() => onTogglePayment(d.id, 'PAID')}>Undo</button>
+            <div className="delegate-actions">
+              <button className="ghost small" onClick={() => onEditDelegate(d)}>Edit</button>
+              <button className="ghost small" onClick={() => onTogglePayment(d.id, 'PAID')}>Undo</button>
+              <button className="ghost small danger" onClick={() => onDeleteDelegate(d.id)}>Delete</button>
+            </div>
           </div>
         ))}
         {unassignedPaidDelegates.length === 0 && <p className="helper-text empty-view-message">All paid delegates are grouped.</p>}

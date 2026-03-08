@@ -5,16 +5,19 @@ import AdminPage from './components/AdminPage'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ChurchId, Delegate, Group, Mode, PaymentMethod, RegistrationFormState } from './types'
-import { generateIDCards } from './utils/pdfGenerator'
+import { generateIDCards, generateTShirtSizePDF } from './utils/pdfGenerator'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { 
   addDelegateToFirestore, 
+  editDelegateInFirestore,
   toggleDelegatePayment, 
-  performAutoGrouping, 
   moveDelegateToGroup, 
   removeDelegateFromGroup, 
-  renameGroupInFirestore 
+  renameGroupInFirestore, 
+  deleteDelegateFromFirestore,
+  overwriteGroupsInFirestore
 } from './services/firestoreService'
+import EditDelegateModal from './components/EditDelegateModal'
 
 type ToastType = { message: string, type: 'success' | 'error' | 'info', id: number }
 
@@ -34,13 +37,14 @@ function App() {
   const [hydrated, setHydrated] = useState(false)
 
   const [adminChurchFilter, setAdminChurchFilter] = useState<ChurchId | 'ALL'>('ALL')
-  const groupCount = 4
   
   const [draggedDelegateId, setDraggedDelegateId] = useState<string | null>(null)
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false)
   const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [adminPasswordError, setAdminPasswordError] = useState('')
+
+  const [editingDelegate, setEditingDelegate] = useState<Delegate | null>(null);
 
   const [toasts, setToasts] = useState<ToastType[]>([])
 
@@ -78,8 +82,6 @@ function App() {
     return () => { unsubDel(); unsubGrp() }
   }, [])
 
-  // Keep "/" as Home. Only use "/register" for the bulk registration flow.
-
   const handleStartBulk = () => { setBulkCount(1); setRegView('SETUP_BULK') }
   const handleConfirmBulkCount = (count: number) => {
     setBulkForms(Array(count).fill(null).map(() => ({
@@ -105,7 +107,7 @@ function App() {
             lastName: form.lastName,
             firstName: form.firstName,
             age: Number(form.age),
-            gender: form.gender, // Include gender
+            gender: form.gender, 
             birthday: form.birthday,
             category: form.category,
             tshirtSize: form.tshirtSize,
@@ -143,17 +145,49 @@ function App() {
     else { setAdminPasswordError('Incorrect.'); showToast('Incorrect password', 'error') }
   }
 
-  const handleAutoGroup = async () => {
-    const result = await performAutoGrouping(delegates, groups, groupCount)
-    showToast(result.message, result.success ? 'success' : 'info')
-  }
-
   const handlePrintIDs = (gid?: string) => {
     try {
       generateIDCards(delegates, groups, gid) 
       showToast('ID PDF generated', 'success')
     } catch { showToast('No delegates to print', 'error') }
   }
+  
+  const handlePrintTShirts = () => {
+    try {
+      generateTShirtSizePDF(paidDelegates);
+      showToast('T-Shirt sizes PDF generated', 'success');
+    } catch {
+      showToast('No paid delegates to print', 'error');
+    }
+  };
+
+  const handleEditDelegate = async (delegateId: string, data: Partial<RegistrationFormState>) => {
+    try {
+      const delegateToUpdate = delegates.find(d => d.id === delegateId);
+      if (!delegateToUpdate) return;
+  
+      const updatedData = { ...delegateToUpdate, ...data, age: Number(data.age) };
+  
+      await editDelegateInFirestore(delegateId, updatedData);
+      showToast('Delegate updated successfully', 'success');
+      setEditingDelegate(null);
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to update delegate', 'error');
+    }
+  };
+
+  const handleDeleteDelegate = async (delegateId: string) => {
+    if (window.confirm('Are you sure you want to delete this delegate?')) {
+      try {
+        await deleteDelegateFromFirestore(delegateId);
+        await removeDelegateFromGroup(delegateId); // Also remove from any group
+        showToast('Delegate deleted successfully', 'success');
+      } catch {
+        showToast('Failed to delete delegate', 'error');
+      }
+    }
+  };
 
   const handleRenameGroup = async (groupId: string, newName: string) => {
     try {
@@ -161,6 +195,46 @@ function App() {
       showToast('Group renamed successfully', 'success');
     } catch {
       showToast('Failed to rename group', 'error');
+    }
+  };
+
+  const handleAutoGroup = async () => {
+    const numGroups = 4;
+    if (!window.confirm(`This will delete all ${groups.length} existing groups and create ${numGroups} new ones with all paid delegates. Continue?`)) return;
+
+    try {
+      const allPaidDelegates = delegates.filter(d => d.paymentStatus === 'PAID');
+      const sortedDelegates = [...allPaidDelegates].sort((a, b) => a.age - b.age);
+      
+      const newGroups: { name: string, delegateIds: string[] }[] = Array(numGroups).fill(null).map((_, i) => ({ name: `Group ${i + 1}`, delegateIds: [] }));
+      
+      sortedDelegates.forEach((delegate, index) => {
+        newGroups[index % numGroups].delegateIds.push(delegate.id);
+      });
+
+      await overwriteGroupsInFirestore(newGroups);
+      showToast(`Successfully created ${numGroups} groups.`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Failed to create groups.', 'error');
+    }
+  };
+
+  const handleMoveToUnassigned = async (delegateId: string) => {
+    try {
+      await removeDelegateFromGroup(delegateId);
+      showToast('Delegate moved to unassigned.', 'info');
+    } catch {
+      showToast('Failed to move delegate.', 'error');
+    }
+  };
+
+  const handleMarkAsUnpaid = async (delegateId: string) => {
+    try {
+      await toggleDelegatePayment(delegateId, 'PAID', groups);
+      showToast('Delegate marked as unpaid.', 'info');
+    } catch {
+      showToast('Failed to mark as unpaid.', 'error');
     }
   };
 
@@ -182,6 +256,8 @@ function App() {
           </div>
         </div>
       )}
+
+      <EditDelegateModal delegate={editingDelegate} onClose={() => setEditingDelegate(null)} onSave={handleEditDelegate} />
 
       <Routes>
         <Route
@@ -309,13 +385,18 @@ function App() {
                 unassignedPaidDelegates={unassignedPaidDelegates}
                 adminChurchFilter={adminChurchFilter}
                 onSetAdminChurchFilter={setAdminChurchFilter}
-                onAutoGroup={handleAutoGroup}
                 onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
                 onDropToLate={async () => { if(draggedDelegateId) { await removeDelegateFromGroup(draggedDelegateId); setDraggedDelegateId(null); showToast('Removed from group', 'info') }}}
                 onDropToGroup={async (gid) => { if(draggedDelegateId) { await moveDelegateToGroup(draggedDelegateId, gid, delegates); setDraggedDelegateId(null); showToast('Moved to group', 'success') }}}
                 onDragStart={setDraggedDelegateId}
                 onPrintIDs={handlePrintIDs}
+                onPrintTShirts={handlePrintTShirts}
+                onEditDelegate={setEditingDelegate}
+                onDeleteDelegate={handleDeleteDelegate}
                 onRenameGroup={handleRenameGroup}
+                onAutoGroup={handleAutoGroup}
+                onMoveToUnassigned={handleMoveToUnassigned}
+                onMarkAsUnpaid={handleMarkAsUnpaid}
                 onGoToRegistration={() => {
                   setMode('registration')
                   navigate('/')
@@ -331,4 +412,5 @@ function App() {
     </div>
   )
 }
+
 export default App
