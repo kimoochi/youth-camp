@@ -366,6 +366,21 @@ button { border: none; font-family: inherit; cursor: pointer; transition: 0.2s; 
   font-size: 0.75rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em;
 }
 
+.age-display {
+  padding: 0.8rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-light);
+  background: #f3f4f6;
+  text-align: center;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 input, select {
   padding: 0.8rem; 
   border: 2px solid #e5e7eb; 

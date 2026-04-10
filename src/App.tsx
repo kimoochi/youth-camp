@@ -93,7 +93,6 @@ function App() {
 
   // Keep "/" as Home. Only use "/register" for the bulk registration flow.
 
-  const handleStartBulk = () => { setBulkCount(1); setRegView('SETUP_BULK') }
   const handleConfirmBulkCount = (count: number) => {
     setBulkForms(Array(count).fill(null).map(() => ({
       lastName: '', firstName: '', age: '', gender: 'Male', birthday: '', category: 'High School (JHS)', tshirtSize: 'M',
@@ -205,18 +204,10 @@ function App() {
                 handleConfirmBulkCount(count)
                 navigate('/register')
               }}
-              onStartBulk={() => {
-                handleStartBulk()
-                navigate('/register')
-              }}
               onSubmitBulk={handleSubmitBulk}
               onSelectChurch={(c) => {
                 setSelectedChurch(c)
                 setRegView('SETUP_BULK')
-              }}
-              onBackToChurches={() => {
-                setSelectedChurch(null)
-                setRegView('CHURCH_SELECT')
               }}
               onFinishRegistration={() => {
                 setSelectedChurch(null)
@@ -247,17 +238,11 @@ function App() {
                 isBulkSubmitting={isBulkSubmitting}
                 onUpdateBulkForm={handleUpdateBulkForm}
                 onConfirmBulkCount={handleConfirmBulkCount}
-                onStartBulk={handleStartBulk}
                 onSubmitBulk={handleSubmitBulk}
                 onSelectChurch={(c) => {
                   setSelectedChurch(c)
                   setRegView('SETUP_BULK')
                   navigate('/register')
-                }}
-                onBackToChurches={() => {
-                  setSelectedChurch(null)
-                  setRegView('CHURCH_SELECT')
-                  navigate('/')
                 }}
                 onFinishRegistration={() => {
                   setSelectedChurch(null)

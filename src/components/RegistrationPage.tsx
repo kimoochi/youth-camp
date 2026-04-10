@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
-import { CHURCHES, getChurchName } from '../types'
-import type { ChurchId, Delegate, PaymentMethod } from '../types'
+import { CHURCHES } from '../types'
+import type { ChurchId, PaymentMethod } from '../types'
 import type { RegistrationFormState } from '../App'
 
 interface RegistrationPageProps {
@@ -18,10 +18,8 @@ interface RegistrationPageProps {
     value: RegistrationFormState[keyof RegistrationFormState]
   ) => void
   onConfirmBulkCount: (n: number) => void
-  onStartBulk: () => void
   onSubmitBulk: (e: FormEvent) => Promise<string[]> 
   onSelectChurch: (church: ChurchId) => void
-  onBackToChurches: () => void
   onFinishRegistration: () => void
   onGoHome: () => void
   showToast: (msg: string, type: 'success'|'error'|'info') => void
@@ -38,16 +36,12 @@ function RegistrationPage({
   isBulkSubmitting,
   onUpdateBulkForm,
   onConfirmBulkCount,
-  onStartBulk,
   onSubmitBulk,
   onSelectChurch,
-  onBackToChurches,
   onFinishRegistration,
   onGoHome,
   showToast
 }: RegistrationPageProps) {
-
-  const currentChurchName = getChurchName(selectedChurch)
 
   const GCASH_NUMBER = '09619605811'
 
@@ -73,10 +67,6 @@ function RegistrationPage({
       if (!isValidName(f.firstName)) return `Delegate ${i + 1}: First name must be letters only.`
       if (!isValidName(f.lastName)) return `Delegate ${i + 1}: Last name must be letters only.`
 
-      const ageNum = Number(f.age)
-      if (!Number.isInteger(ageNum)) return `Delegate ${i + 1}: Age must be a whole number.`
-      if (ageNum < 0 || ageNum > 60) return `Delegate ${i + 1}: Age must be between 0 and 60.`
-
       const bd = new Date(f.birthday)
       const today = new Date()
       if (Number.isNaN(bd.getTime())) return `Delegate ${i + 1}: Birthday is invalid.`
@@ -84,8 +74,8 @@ function RegistrationPage({
       if (bd.getFullYear() < 1950) return `Delegate ${i + 1}: Birthday year looks invalid.`
 
       const computedAge = getAgeFromBirthday(f.birthday)
-      if (computedAge !== null && Math.abs(computedAge - ageNum) > 1) {
-        return `Delegate ${i + 1}: Age doesn't match birthday.`
+      if (computedAge === null || computedAge < 0 || computedAge > 60) {
+        return `Delegate ${i + 1}: Age must be between 0 and 60.`
       }
     }
     return null
@@ -93,16 +83,6 @@ function RegistrationPage({
 
   const sanitizeNameInput = (value: string) =>
     value.replace(/[^A-Za-zÑñ' -]/g, '')
-
-  const sanitizeAgeInput = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 2)
-    if (!digits) return ''
-    let n = Number(digits)
-    if (Number.isNaN(n)) return ''
-    if (n < 0) n = 0
-    if (n > 60) n = 60
-    return String(n)
-  }
 
   const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -223,87 +203,82 @@ function RegistrationPage({
                 </div>
              </div>
 
-             <div className="bulk-forms-grid">
-               {bulkForms.map((form, index) => (
-                 <div key={index} className="delegate-form-card">
-                    <div className="form-card-title">Delegate {index + 1}</div>
-                    <div className="form-grid-compact">
-                      <div className="field-group half">
-                        <label>First Name</label>
-                        <input
-                          required
-                          value={form.firstName}
-                          onChange={e=>onUpdateBulkForm(index, 'firstName', sanitizeNameInput(e.target.value))}
-                          placeholder="First Name"
-                          autoComplete="given-name"
-                          inputMode="text"
-                        />
-                      </div>
-                      <div className="field-group half">
-                        <label>Last Name</label>
-                        <input
-                          required
-                          value={form.lastName}
-                          onChange={e=>onUpdateBulkForm(index, 'lastName', sanitizeNameInput(e.target.value))}
-                          placeholder="Last Name"
-                          autoComplete="family-name"
-                          inputMode="text"
-                        />
-                      </div>
-                      <div className="field-group quarter">
-                        <label>Age</label>
-                        <input
-                          type="number"
-                          required
-                          min={0}
-                          max={60}
-                          step={1}
-                          value={form.age}
-                          onChange={e=>onUpdateBulkForm(index, 'age', sanitizeAgeInput(e.target.value))}
-                          placeholder="0"
-                          inputMode="numeric"
-                        />
-                      </div>
-                      {/* ADDED GENDER FIELD HERE */}
-                      <div className="field-group quarter">
-                        <label>Gender</label>
-                        <select value={form.gender} onChange={e=>onUpdateBulkForm(index, 'gender', e.target.value)}>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
-                      </div>
-                      <div className="field-group third">
-                        <label>Birthday</label>
-                        <input
-                          type="date"
-                          required
-                          value={form.birthday}
-                          max={new Date().toISOString().slice(0, 10)}
-                          min="1950-01-01"
-                          onFocus={(e) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                          onChange={e=>onUpdateBulkForm(index, 'birthday', e.target.value)}
-                        />
-                      </div>
-                      <div className="field-group third">
-                        <label>Category</label>
-                        <select value={form.category} onChange={e=>onUpdateBulkForm(index, 'category', e.target.value)}>
-                          <option>High School (JHS)</option>
-                          <option>High School (SHS)</option>
-                          <option>College</option>
-                          <option>Young Professional</option>
-                        </select>
-                      </div>
-                      <div className="field-group quarter">
-                        <label>Size</label>
-                        <select value={form.tshirtSize} onChange={e=>onUpdateBulkForm(index, 'tshirtSize', e.target.value)}>
-                          <option>10</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option>
-                          <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
-                        </select>
-                      </div>
-                    </div>
-                 </div>
-               ))}
-             </div>
+              <div className="bulk-forms-grid">
+                {bulkForms.map((form, index) => {
+                  const calculatedAge = getAgeFromBirthday(form.birthday)
+                  return (
+                  <div key={index} className="delegate-form-card">
+                     <div className="form-card-title">Delegate {index + 1}</div>
+                     <div className="form-grid-compact">
+                       <div className="field-group half">
+                         <label>First Name</label>
+                         <input
+                           required
+                           value={form.firstName}
+                           onChange={e=>onUpdateBulkForm(index, 'firstName', sanitizeNameInput(e.target.value))}
+                           placeholder="First Name"
+                           autoComplete="given-name"
+                           inputMode="text"
+                         />
+                       </div>
+                       <div className="field-group half">
+                         <label>Last Name</label>
+                         <input
+                           required
+                           value={form.lastName}
+                           onChange={e=>onUpdateBulkForm(index, 'lastName', sanitizeNameInput(e.target.value))}
+                           placeholder="Last Name"
+                           autoComplete="family-name"
+                           inputMode="text"
+                         />
+                       </div>
+                       <div className="field-group third">
+                         <label>Birthday</label>
+                         <input
+                           type="date"
+                           required
+                           value={form.birthday}
+                           max={new Date().toISOString().slice(0, 10)}
+                           min="1950-01-01"
+                           onFocus={(e) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                           onChange={e=>onUpdateBulkForm(index, 'birthday', e.target.value)}
+                         />
+                       </div>
+                       <div className="field-group quarter">
+                         <label>Age</label>
+                         <div className="age-display">
+                           {calculatedAge !== null && calculatedAge >= 0 && calculatedAge <= 60 
+                             ? calculatedAge 
+                             : '—'}
+                         </div>
+                       </div>
+                       <div className="field-group quarter">
+                         <label>Gender</label>
+                         <select value={form.gender} onChange={e=>onUpdateBulkForm(index, 'gender', e.target.value)}>
+                           <option value="Male">Male</option>
+                           <option value="Female">Female</option>
+                         </select>
+                       </div>
+                       <div className="field-group third">
+                         <label>Category</label>
+                         <select value={form.category} onChange={e=>onUpdateBulkForm(index, 'category', e.target.value)}>
+                           <option>High School (JHS)</option>
+                           <option>High School (SHS)</option>
+                           <option>College</option>
+                           <option>Young Professional</option>
+                         </select>
+                       </div>
+                       <div className="field-group quarter">
+                         <label>Size</label>
+                         <select value={form.tshirtSize} onChange={e=>onUpdateBulkForm(index, 'tshirtSize', e.target.value)}>
+                           <option>10</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option>
+                           <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
+                         </select>
+                       </div>
+                     </div>
+                  </div>
+                )})}
+              </div>
 
              <div className="card payment-card">
                <h3>Payment Method</h3>

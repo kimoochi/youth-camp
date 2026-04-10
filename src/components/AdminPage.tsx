@@ -49,7 +49,8 @@ function AdminPage({
   onRemoveLeadership,
   onDeleteDelegate,
   onUpdateDelegate,
-  onGoToRegistration
+  onGoToRegistration,
+  showToast
 }: AdminPageProps) {
   
   const [creationModal, setCreationModal] = useState<{groupId: string, role: 'Leader'|'Assistant Leader'} | null>(null);
