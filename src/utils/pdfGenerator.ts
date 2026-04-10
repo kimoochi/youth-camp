@@ -33,12 +33,24 @@ export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {
   members.forEach((m) => {
     if (y > 280) { doc.addPage(); y = 20; }
     
-    doc.text(`${m.lastName}, ${m.firstName}`, 14, y)
-    // Truncate long church names for PDF list
-    const churchName = getChurchName(m.church).substring(0, 35)
-    doc.text(churchName, 70, y)
-    doc.text(m.age.toString(), 160, y)
-    doc.text(m.tshirtSize, 180, y)
+    // Label Leaders/Assistants differently
+    const isStaff = m.role === 'Leader' || m.role === 'Assistant Leader'
+    const roleLabel = m.role === 'Leader' ? ' (LEADER)' : m.role === 'Assistant Leader' ? ' (ASST)' : ''
+    
+    doc.setFont('helvetica', isStaff ? 'bold' : 'normal')
+    doc.text(`${m.lastName}, ${m.firstName}${roleLabel}`, 14, y)
+    
+    // Use acronym (m.church) instead of full name to save space
+    doc.text(m.church, 70, y)
+    
+    // Remove age and size for staff
+    if (!isStaff) {
+      doc.text(m.age.toString(), 160, y)
+      doc.text(m.tshirtSize, 180, y)
+    } else {
+      doc.text('---', 160, y)
+      doc.text('---', 180, y)
+    }
     
     y += 8
   })

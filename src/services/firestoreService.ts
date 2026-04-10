@@ -1,28 +1,57 @@
-import { collection, addDoc, updateDoc, doc, getDocs, DocumentReference } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, getDocs, deleteDoc, DocumentReference } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { Delegate, Group, PaymentStatus } from '../types'
+import type { Delegate, Group, PaymentStatus, DelegateRole } from '../types'
 
 export const addDelegateToFirestore = async (delegateData: Omit<Delegate, 'id'>): Promise<DocumentReference> => {
   return await addDoc(collection(db, 'delegates'), delegateData)
 }
 
-export const toggleDelegatePayment = async (delegateId: string, currentStatus: PaymentStatus, groups: Group[]) => {
+export const deleteDelegate = async (id: string, delegates: Delegate[], groups: Group[]) => {
+  // Find if in group
+  const group = groups.find(g => g.delegateIds.includes(id))
+  if (group) {
+    const newIds = group.delegateIds.filter(gid => gid !== id)
+    await updateDoc(doc(db, 'groups', group.id), { delegateIds: newIds })
+  }
+  await deleteDoc(doc(db, 'delegates', id))
+}
+
+export const createAndAssignLeader = async (delegateData: Omit<Delegate, 'id'>, groupId: string) => {
+  const ref = await addDoc(collection(db, 'delegates'), delegateData)
+  const groupDoc = await getDocs(collection(db, 'groups'))
+  groupDoc.forEach(async (g) => {
+    if (g.id === groupId) {
+       const ids = g.data().delegateIds || []
+       await updateDoc(g.ref, { delegateIds: [...ids, ref.id] })
+    }
+  })
+}
+
+export const changeDelegateRole = async (delegateId: string, role: DelegateRole) => {
+  await updateDoc(doc(db, 'delegates', delegateId), { role })
+}
+
+export const toggleDelegatePayment = async (delegateId: string, currentStatus: PaymentStatus, groups: Group[], delegates: Delegate[]) => {
   const newStatus = currentStatus === 'PAID' ? 'UNPAID' : 'PAID'
   await updateDoc(doc(db, 'delegates', delegateId), { paymentStatus: newStatus })
   
   if (newStatus === 'UNPAID') {
-    const group = groups.find(g => g.delegateIds.includes(delegateId))
-    if (group) {
-      const newIds = group.delegateIds.filter(id => id !== delegateId)
-      await updateDoc(doc(db, 'groups', group.id), { delegateIds: newIds })
+    const delegate = delegates.find(d => d.id === delegateId)
+    // Only remove from group if they are NOT a Leader/Assistant Leader
+    if (delegate?.role !== 'Leader' && delegate?.role !== 'Assistant Leader') {
+      const group = groups.find(g => g.delegateIds.includes(delegateId))
+      if (group) {
+        const newIds = group.delegateIds.filter(id => id !== delegateId)
+        await updateDoc(doc(db, 'groups', group.id), { delegateIds: newIds })
+      }
     }
   }
 }
 
 // --- UPDATED AUTO-GROUPING LOGIC (Gender & Age Balanced) ---
 export const performAutoGrouping = async (delegates: Delegate[], groups: Group[], groupCount: number) => {
-  // 1. Get Pool of PAID, UNASSIGNED delegates
-  const allPaid = delegates.filter(d => d.paymentStatus === 'PAID')
+  // 1. Get Pool of PAID, UNASSIGNED delegates (excluding Leaders & Assistant Leaders)
+  const allPaid = delegates.filter(d => d.paymentStatus === 'PAID' && d.role !== 'Leader' && d.role !== 'Assistant Leader')
   const allAssignedIds = new Set<string>()
   groups.forEach(g => g.delegateIds.forEach(id => allAssignedIds.add(id)))
   
@@ -84,7 +113,9 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
 
 export const moveDelegateToGroup = async (delegateId: string, targetGroupId: string, delegates: Delegate[]) => {
   const delegate = delegates.find(d => d.id === delegateId)
-  if (delegate?.paymentStatus !== 'PAID') throw new Error('Only PAID delegates can be grouped.')
+  if (delegate?.paymentStatus !== 'PAID' && delegate?.role !== 'Leader' && delegate?.role !== 'Assistant Leader') {
+    throw new Error('Only PAID delegates or Leaders can be grouped.')
+  }
 
   const groupDocs = await getDocs(collection(db, 'groups'))
   const updates = groupDocs.docs.map(async (gDoc) => {

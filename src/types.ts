@@ -18,6 +18,7 @@ export type Gender = 'Male' | 'Female' // New Type
 export type Mode = 'registration' | 'admin'
 export type PaymentStatus = 'PAID' | 'UNPAID'
 export type PaymentMethod = 'ONLINE' | 'ONSITE'
+export type DelegateRole = 'Delegate' | 'Leader' | 'Assistant Leader'
 
 export interface Delegate {
   id: string
@@ -33,6 +34,7 @@ export interface Delegate {
   paymentStatus: PaymentStatus
   paymentMethod: PaymentMethod
   referenceNumber?: string
+  role?: DelegateRole
 }
 
 export interface Group {

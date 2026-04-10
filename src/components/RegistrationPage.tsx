@@ -24,14 +24,7 @@ interface RegistrationPageProps {
   onSelectChurch: (church: ChurchId) => void
   onBackToChurches: () => void
   onFinishRegistration: () => void
-  onGoToAdmin: () => void
   onGoHome: () => void
-  showAdminLogin: boolean
-  adminPasswordInput: string
-  adminPasswordError: string
-  onAdminPasswordChange: (v: string) => void
-  onSubmitAdminPassword: (e: FormEvent) => void
-  onCancelAdminLogin: () => void
   showToast: (msg: string, type: 'success'|'error'|'info') => void
 }
 
@@ -52,14 +45,7 @@ function RegistrationPage({
   onSelectChurch,
   onBackToChurches,
   onFinishRegistration,
-  onGoToAdmin,
   onGoHome,
-  showAdminLogin,
-  adminPasswordInput,
-  adminPasswordError,
-  onAdminPasswordChange,
-  onSubmitAdminPassword,
-  onCancelAdminLogin,
   showToast
 }: RegistrationPageProps) {
 
@@ -140,31 +126,13 @@ function RegistrationPage({
           <div className="camp-title">Youth Camp 2026</div>
           <div className="camp-subtitle">Registration Portal</div>
         </button>
-        <button className="topbar-button" onClick={onGoToAdmin}>Admin Access</button>
       </header>
 
       <main className="content">
-        {/* LOGIN MODAL */}
-        {showAdminLogin && (
-          <div className="modal-overlay">
-            <section className="card modal-card">
-              <h2>Admin Login</h2>
-              <form onSubmit={onSubmitAdminPassword}>
-                <input type="password" value={adminPasswordInput} onChange={e=>onAdminPasswordChange(e.target.value)} autoFocus placeholder="Enter Password" className="input-large" />
-                {adminPasswordError && <p className="error-text">{adminPasswordError}</p>}
-                <div className="actions right">
-                   <button type="button" className="ghost" onClick={onCancelAdminLogin}>Cancel</button>
-                   <button type="submit" className="primary">Login</button>
-                </div>
-              </form>
-            </section>
-          </div>
-        )}
-
         {/* QR / reference modal removed – online payments handled via simple instructions only */}
 
         {/* STEP 1 & 2 & 3 (Same as before) */}
-        {view === 'CHURCH_SELECT' && !showAdminLogin && (
+        {view === 'CHURCH_SELECT' && (
           <section className="card">
             <h2>Select your Church</h2>
             <p className="helper-text">Please select your participating church.</p>
@@ -178,7 +146,7 @@ function RegistrationPage({
           </section>
         )}
 
-        {view === 'LIST' && selectedChurch && !showAdminLogin && (
+        {view === 'LIST' && selectedChurch && (
           <section className="card">
             <div className="card-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
               <div><h2>{currentChurchName}</h2><p className="helper-text" style={{marginBottom:0}}>{churchDelegates.length} Registered Delegates</p></div>
@@ -196,7 +164,7 @@ function RegistrationPage({
           </section>
         )}
 
-        {view === 'SETUP_BULK' && !showAdminLogin && (
+        {view === 'SETUP_BULK' && (
           <section className="card centered-card">
             <h2>Registration Count</h2><p className="helper-text">How many delegates are you registering now?</p>
             <div className="counter-input"><button className="counter-btn" onClick={() => setBulkCount(Math.max(1, bulkCount - 1))}>-</button><span className="counter-val">{bulkCount}</span><button className="counter-btn" onClick={() => setBulkCount(Math.min(10, bulkCount + 1))}>+</button></div>
@@ -205,7 +173,7 @@ function RegistrationPage({
         )}
 
         {/* STEP 4: BULK FORM (UPDATED WITH GENDER) */}
-        {view === 'BULK_FORM' && selectedChurch && !showAdminLogin && (
+        {view === 'BULK_FORM' && selectedChurch && (
           <form onSubmit={handleFormSubmit} className="bulk-container">
              <div className="card" style={{position:'sticky', top: '80px', zIndex:40, borderLeft: '4px solid var(--primary)'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -316,7 +284,7 @@ function RegistrationPage({
           </form>
         )}
 
-        {view === 'SUCCESS' && !showAdminLogin && (
+        {view === 'SUCCESS' && (
           <section className="card centered-card">
             <div style={{fontSize:'3rem', marginBottom:'1rem'}}>✅</div>
             <h2>Registration Successful!</h2>

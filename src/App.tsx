@@ -13,7 +13,10 @@ import {
   performAutoGrouping, 
   moveDelegateToGroup, 
   removeDelegateFromGroup, 
-  renameGroupInFirestore 
+  renameGroupInFirestore,
+  changeDelegateRole,
+  createAndAssignLeader,
+  deleteDelegate
 } from './services/firestoreService'
 
 export interface RegistrationFormState {
@@ -48,7 +51,6 @@ function App() {
   
   const [draggedDelegateId, setDraggedDelegateId] = useState<string | null>(null)
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false)
-  const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [adminPasswordError, setAdminPasswordError] = useState('')
 
@@ -141,12 +143,12 @@ function App() {
   const paidDelegates = useMemo(() => adminDelegates.filter(d => d.paymentStatus === 'PAID'), [adminDelegates])
   const unpaidDelegates = useMemo(() => adminDelegates.filter(d => d.paymentStatus === 'UNPAID'), [adminDelegates])
   const assignedIds = useMemo(() => { const s = new Set<string>(); groups.forEach(g => g.delegateIds.forEach(id => s.add(id))); return s }, [groups])
-  const unassignedPaidDelegates = useMemo(() => paidDelegates.filter(d => !assignedIds.has(d.id)), [paidDelegates, assignedIds])
+  const unassignedPaidDelegates = useMemo(() => adminDelegates.filter(d => d.paymentStatus === 'PAID' && !assignedIds.has(d.id) && d.role !== 'Leader' && d.role !== 'Assistant Leader'), [adminDelegates, assignedIds])
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault()
     if (adminPasswordInput === 'Daddymooch123') { 
-      setIsAdminUnlocked(true); setShowAdminLogin(false); setMode('admin'); setAdminPasswordError('');
+      setIsAdminUnlocked(true); setMode('admin'); setAdminPasswordError('');
       navigate('/admin')
       showToast('Welcome back, Admin', 'success')
     }
@@ -224,20 +226,6 @@ function App() {
                 setRegView('CHURCH_SELECT')
                 navigate('/')
               }}
-              onGoToAdmin={() => {
-                if (isAdminUnlocked) {
-                  setMode('admin')
-                  navigate('/admin')
-                } else {
-                  setShowAdminLogin(true)
-                }
-              }}
-              showAdminLogin={showAdminLogin}
-              adminPasswordInput={adminPasswordInput}
-              adminPasswordError={adminPasswordError}
-              onAdminPasswordChange={setAdminPasswordInput}
-              onSubmitAdminPassword={handleAdminLogin}
-              onCancelAdminLogin={() => setShowAdminLogin(false)}
               showToast={showToast}
             />
           }
@@ -280,20 +268,6 @@ function App() {
                   setRegView('CHURCH_SELECT')
                   navigate('/')
                 }}
-                onGoToAdmin={() => {
-                  if (isAdminUnlocked) {
-                    setMode('admin')
-                    navigate('/admin')
-                  } else {
-                    setShowAdminLogin(true)
-                  }
-                }}
-                showAdminLogin={showAdminLogin}
-                adminPasswordInput={adminPasswordInput}
-                adminPasswordError={adminPasswordError}
-                onAdminPasswordChange={setAdminPasswordInput}
-                onSubmitAdminPassword={handleAdminLogin}
-                onCancelAdminLogin={() => setShowAdminLogin(false)}
                 showToast={showToast}
               />
             ) : (
@@ -315,11 +289,56 @@ function App() {
                 groupCount={groupCount}
                 onSetAdminChurchFilter={setAdminChurchFilter}
                 onAutoGroup={handleAutoGroup}
-                onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
+                onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups, delegates); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
                 onDropToLate={async () => { if(draggedDelegateId) { await removeDelegateFromGroup(draggedDelegateId); setDraggedDelegateId(null); showToast('Removed from group', 'info') }}}
-                onDropToGroup={async (gid) => { if(draggedDelegateId) { await moveDelegateToGroup(draggedDelegateId, gid, delegates); setDraggedDelegateId(null); showToast('Moved to group', 'success') }}}
+                onDropToGroup={async (gid) => { 
+                  if(draggedDelegateId) { 
+                    try {
+                      await moveDelegateToGroup(draggedDelegateId, gid, delegates); 
+                      setDraggedDelegateId(null); 
+                      showToast('Moved to group', 'success') 
+                    } catch (err: any) {
+                      showToast(err.message, 'error')
+                    }
+                  }
+                }}
                 onDragStart={setDraggedDelegateId}
                 onPrintIDs={handlePrintIDs}
+                onCreateLeadership={async (data, gid) => {
+                  try {
+                    await createAndAssignLeader(data, gid);
+                    showToast('Leadership registered', 'success');
+                  } catch (err: any) {
+                    showToast(err.message, 'error');
+                  }
+                }}
+                onAssignExistingLeadership={async (delegateId, gid, role) => {
+                  try {
+                    await moveDelegateToGroup(delegateId, gid, delegates);
+                    await changeDelegateRole(delegateId, role);
+                    showToast('Assigned successfully', 'success');
+                  } catch (err: any) {
+                    showToast(err.message, 'error');
+                  }
+                }}
+                onRemoveLeadership={async (id) => {
+                  try {
+                    await changeDelegateRole(id, 'Delegate');
+                    showToast('Leadership role removed', 'info');
+                  } catch (err: any) {
+                    showToast(err.message, 'error');
+                  }
+                }}
+                onDeleteDelegate={async (id) => {
+                  if (window.confirm('Are you sure you want to delete this delegate?')) {
+                    try {
+                      await deleteDelegate(id, delegates, groups);
+                      showToast('Delegate deleted', 'success');
+                    } catch (err: any) {
+                      showToast(err.message, 'error');
+                    }
+                  }
+                }}
                 onRenameGroup={renameGroupInFirestore}
                 onGoToRegistration={() => {
                   setMode('registration')
@@ -328,7 +347,18 @@ function App() {
                 showToast={showToast}
               />
             ) : (
-              <Navigate to="/" replace />
+              <div className="page" style={{minHeight:'100vh', display:'flex', justifyContent:'center', alignItems:'center'}}>
+                <section className="card modal-card" style={{width: '100%', maxWidth: '400px'}}>
+                  <h2>Admin Login</h2>
+                  <form onSubmit={handleAdminLogin}>
+                    <input type="password" value={adminPasswordInput} onChange={e=>setAdminPasswordInput(e.target.value)} autoFocus placeholder="Enter Password" className="input-large" />
+                    {adminPasswordError && <p className="error-text">{adminPasswordError}</p>}
+                    <div className="actions right">
+                       <button type="submit" className="primary large">Login</button>
+                    </div>
+                  </form>
+                </section>
+              </div>
             )
           }
         />
