@@ -1,7 +1,7 @@
 export const CHURCHES = [
   { id: 'MIBC', name: 'Mactan Independent Baptist Church' },
   { id: 'QIBBC', name: 'Quiot Independent Bible Baptist Church' },
-  { id: 'CBBC', name: 'Consolacion Independent Baptist Church' },
+  { id: 'BBC-C', name: 'Bible Baptist Church Consolacion' },
   { id: 'GCBC', name: 'Gospel of Christ Baptist Church' },
 ] as const
 
@@ -14,7 +14,7 @@ export const getChurchName = (id: ChurchId | null | string): string => {
 
 export type DelegateCategory = 'High School (JHS)' | 'High School (SHS)' | 'College' | 'Young Professional'
 export type TShirtSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
-export type Gender = 'Male' | 'Female' // New Type
+export type Gender = 'Male' | 'Female'
 export type Mode = 'registration' | 'admin'
 export type PaymentStatus = 'PAID' | 'UNPAID'
 export type PaymentMethod = 'ONLINE' | 'ONSITE'
@@ -26,7 +26,7 @@ export interface Delegate {
   lastName: string
   firstName: string
   age: number
-  gender: Gender // New Field
+  gender: Gender
   birthday: string
   category: DelegateCategory
   tshirtSize: TShirtSize
@@ -41,4 +41,14 @@ export interface Group {
   id: string
   name: string
   delegateIds: string[]
+}
+
+export interface RegistrationFormState {
+  lastName: string
+  firstName: string
+  age: string
+  gender: Gender
+  birthday: string
+  category: DelegateCategory
+  tshirtSize: TShirtSize
 }
