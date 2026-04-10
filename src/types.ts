@@ -13,7 +13,7 @@ export const getChurchName = (id: ChurchId | null | string): string => {
 }
 
 export type DelegateCategory = 'High School (JHS)' | 'High School (SHS)' | 'College' | 'Young Professional'
-export type TShirtSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
+export type TShirtSize = '10' | '12' | '14' | '16' | '18' | '20' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL'
 export type Gender = 'Male' | 'Female'
 export type Mode = 'registration' | 'admin'
 export type PaymentStatus = 'PAID' | 'UNPAID'

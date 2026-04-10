@@ -1,6 +1,10 @@
 import { collection, addDoc, updateDoc, doc, getDocs, deleteDoc, DocumentReference } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { Delegate, Group, PaymentStatus, DelegateRole } from '../types'
+import type { Delegate, Group, PaymentStatus, DelegateRole, TShirtSize, DelegateCategory, Gender } from '../types'
+
+export const updateDelegate = async (id: string, updates: Partial<Delegate>) => {
+  await updateDoc(doc(db, 'delegates', id), updates)
+}
 
 export const addDelegateToFirestore = async (delegateData: Omit<Delegate, 'id'>): Promise<DocumentReference> => {
   return await addDoc(collection(db, 'delegates'), delegateData)

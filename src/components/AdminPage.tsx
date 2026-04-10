@@ -23,6 +23,7 @@ interface AdminPageProps {
   onAssignExistingLeadership: (delegateId: string, groupId: string, role: 'Leader'|'Assistant Leader') => void
   onRemoveLeadership: (delegateId: string) => void
   onDeleteDelegate: (id: string) => void
+  onUpdateDelegate: (id: string, updates: Partial<Delegate>) => Promise<void>
   onGoToRegistration: () => void
   showToast: (message: string, type: 'success'|'error'|'info') => void
 }
@@ -47,6 +48,7 @@ function AdminPage({
   onAssignExistingLeadership,
   onRemoveLeadership,
   onDeleteDelegate,
+  onUpdateDelegate,
   onGoToRegistration
 }: AdminPageProps) {
   
@@ -54,6 +56,7 @@ function AdminPage({
   const [modalTab, setModalTab] = useState<'create' | 'existing'>('create');
   const [existingDelegateId, setExistingDelegateId] = useState<string>('');
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid');
+  const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null);
   const [formData, setFormData] = useState({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male', birthday: '', category: 'Young Professional', tshirtSize: 'M' });
 
   const handleCreateSubmit = (e: FormEvent) => {
@@ -157,20 +160,25 @@ function AdminPage({
                  {/* PANE: UNPAID */}
                  <div className="sidebar-pane" onDragOver={e=>e.preventDefault()} onDrop={onDropToLate}>
                    <div className="delegate-list">
-                     {visibleUnpaid.map(d => (
-                       <div key={d.id} className="delegate-card" draggable onDragStart={() => onDragStart(d.id)}>
-                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                            <div style={{flex:1}}>
-                              <div className="delegate-name">{d.lastName}, {d.firstName}</div>
-                              <div className="delegate-meta">{getChurchName(d.church)}</div>
-                            </div>
-                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>✕</button>
-                          </div>
-                          <button className="primary small" style={{marginTop:'0.5rem', width:'100%', fontSize:'0.65rem'}} onClick={() => onTogglePayment(d.id, 'UNPAID')}>
-                            Mark as PAID
-                          </button>
-                       </div>
-                     ))}
+                      {visibleUnpaid.map(d => (
+                        <div key={d.id} className="delegate-card" draggable onDragStart={() => onDragStart(d.id)}>
+                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
+                             <div style={{flex:1}}>
+                               <div className="delegate-name">{d.lastName}, {d.firstName}</div>
+                               <div className="delegate-meta">{getChurchName(d.church)}</div>
+                             </div>
+                             <button className="delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>✕</button>
+                           </div>
+                           <div style={{display:'flex', gap:'0.4rem', marginTop:'0.25rem'}}>
+                             <button className="primary small" style={{flex:1.5, fontSize:'0.6rem'}} onClick={() => onTogglePayment(d.id, 'UNPAID')}>
+                               PAID
+                             </button>
+                             <button className="ghost small" style={{flex:1, fontSize:'0.6rem'}} onClick={() => setSelectedDelegate(d)}>
+                               DETAILS
+                             </button>
+                           </div>
+                        </div>
+                      ))}
                      {visibleUnpaid.length === 0 && <p style={{textAlign:'center', padding:'2rem', color:'#999', fontSize:'0.8rem'}}>No unpaid delegates.</p>}
                    </div>
                  </div>
@@ -242,6 +250,57 @@ function AdminPage({
                       <div style={{display:'flex', gap:'1rem', marginTop:'1.5rem'}}><button type="button" className="ghost large" onClick={()=>setCreationModal(null)}>Cancel</button><button type="button" className="primary large" disabled={!existingDelegateId} onClick={()=>{onAssignExistingLeadership(existingDelegateId, creationModal.groupId, creationModal.role); setCreationModal(null); setExistingDelegateId('');}}>Assign</button></div>
                    </div>
                  )}
+               </div>
+             </div>
+           )}
+
+           {selectedDelegate && (
+             <div className="modal-overlay">
+               <div className="modal-card">
+                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
+                   <h2 style={{margin:0, fontSize:'1.2rem'}}>Delegate Details</h2>
+                   <button className="delete-btn" onClick={()=>setSelectedDelegate(null)}>✕</button>
+                 </div>
+                 
+                 <form className="form-grid-compact" onSubmit={async (e) => {
+                   e.preventDefault();
+                   const form = e.target as HTMLFormElement;
+                   const updates = {
+                     firstName: (form.elements.namedItem('firstName') as HTMLInputElement).value,
+                     lastName: (form.elements.namedItem('lastName') as HTMLInputElement).value,
+                     age: Number((form.elements.namedItem('age') as HTMLInputElement).value),
+                     tshirtSize: (form.elements.namedItem('tshirtSize') as HTMLSelectElement).value as any,
+                     category: (form.elements.namedItem('category') as HTMLSelectElement).value as any,
+                     gender: (form.elements.namedItem('gender') as HTMLSelectElement).value as any,
+                   };
+                   try {
+                     await onUpdateDelegate(selectedDelegate.id, updates);
+                     setSelectedDelegate(null);
+                     showToast('Delegate updated', 'success');
+                   } catch {
+                     showToast('Update failed', 'error');
+                   }
+                 }}>
+                    <div className="field-group half"><label>First Name</label><input name="firstName" defaultValue={selectedDelegate.firstName} required /></div>
+                    <div className="field-group half"><label>Last Name</label><input name="lastName" defaultValue={selectedDelegate.lastName} required /></div>
+                    <div className="field-group half"><label>Age</label><input name="age" type="number" defaultValue={selectedDelegate.age} required /></div>
+                    <div className="field-group half"><label>Gender</label><select name="gender" defaultValue={selectedDelegate.gender}><option>Male</option><option>Female</option></select></div>
+                    <div className="field-group half"><label>Size</label>
+                      <select name="tshirtSize" defaultValue={selectedDelegate.tshirtSize}>
+                        <option>10</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option>
+                        <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
+                      </select>
+                    </div>
+                    <div className="field-group full"><label>Category</label>
+                      <select name="category" defaultValue={selectedDelegate.category}>
+                        <option>High School (JHS)</option><option>High School (SHS)</option><option>College</option><option>Young Professional</option>
+                      </select>
+                    </div>
+                    <div className="modal-actions">
+                      <button type="button" className="ghost large" onClick={()=>setSelectedDelegate(null)}>Close</button>
+                      <button type="submit" className="primary large">Save Changes</button>
+                    </div>
+                 </form>
                </div>
              </div>
            )}
@@ -319,7 +378,10 @@ function AdminPage({
                         <div key={m.id} className="delegate-card" draggable onDragStart={()=>onDragStart(m.id)} style={{margin:0, padding:'0.3rem 0.5rem'}}>
                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                              <span style={{fontSize:'0.7rem'}}>{m.lastName}, {m.firstName}</span>
-                             <button className="delete-btn" onClick={()=>onDeleteDelegate(m.id)}>✕</button>
+                             <div style={{display:'flex', gap:'4px'}}>
+                               <button className="ghost small" style={{fontSize:'0.5rem', padding:'2px 4px', border:'none'}} onClick={()=>setSelectedDelegate(m)}>Details</button>
+                               <button className="delete-btn" onClick={()=>onDeleteDelegate(m.id)}>✕</button>
+                             </div>
                            </div>
                         </div>
                       ))}

@@ -16,7 +16,8 @@ import {
   renameGroupInFirestore,
   changeDelegateRole,
   createAndAssignLeader,
-  deleteDelegate
+  deleteDelegate,
+  updateDelegate
 } from './services/firestoreService'
 
 export interface RegistrationFormState {
@@ -191,9 +192,8 @@ function App() {
           path="/"
           element={
             <RegistrationPage
-              view={regView === 'SETUP_BULK' || regView === 'BULK_FORM' ? 'LIST' : regView}
+              view={regView}
               selectedChurch={selectedChurch}
-              delegates={delegates}
               bulkCount={bulkCount}
               setBulkCount={setBulkCount}
               bulkForms={bulkForms}
@@ -212,14 +212,15 @@ function App() {
               onSubmitBulk={handleSubmitBulk}
               onSelectChurch={(c) => {
                 setSelectedChurch(c)
-                setRegView('LIST')
+                setRegView('SETUP_BULK')
               }}
               onBackToChurches={() => {
                 setSelectedChurch(null)
                 setRegView('CHURCH_SELECT')
               }}
               onFinishRegistration={() => {
-                setRegView('LIST')
+                setSelectedChurch(null)
+                setRegView('CHURCH_SELECT')
               }}
               onGoHome={() => {
                 setSelectedChurch(null)
@@ -238,7 +239,6 @@ function App() {
               <RegistrationPage
                 view={regView}
                 selectedChurch={selectedChurch}
-                delegates={delegates}
                 bulkCount={bulkCount}
                 setBulkCount={setBulkCount}
                 bulkForms={bulkForms}
@@ -251,8 +251,8 @@ function App() {
                 onSubmitBulk={handleSubmitBulk}
                 onSelectChurch={(c) => {
                   setSelectedChurch(c)
-                  setRegView('LIST')
-                  navigate('/')
+                  setRegView('SETUP_BULK')
+                  navigate('/register')
                 }}
                 onBackToChurches={() => {
                   setSelectedChurch(null)
@@ -260,7 +260,8 @@ function App() {
                   navigate('/')
                 }}
                 onFinishRegistration={() => {
-                  setRegView('LIST')
+                  setSelectedChurch(null)
+                  setRegView('CHURCH_SELECT')
                   navigate('/')
                 }}
                 onGoHome={() => {
@@ -339,6 +340,7 @@ function App() {
                     }
                   }
                 }}
+                onUpdateDelegate={updateDelegate}
                 onRenameGroup={renameGroupInFirestore}
                 onGoToRegistration={() => {
                   setMode('registration')
