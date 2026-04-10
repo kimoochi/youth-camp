@@ -332,7 +332,7 @@ function App() {
                 onDeleteDelegate={async (id) => {
                   if (window.confirm('Are you sure you want to delete this delegate?')) {
                     try {
-                      await deleteDelegate(id, delegates, groups);
+                      await deleteDelegate(id, groups);
                       showToast('Delegate deleted', 'success');
                     } catch (err: any) {
                       showToast(err.message, 'error');

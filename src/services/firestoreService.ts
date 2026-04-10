@@ -6,7 +6,7 @@ export const addDelegateToFirestore = async (delegateData: Omit<Delegate, 'id'>)
   return await addDoc(collection(db, 'delegates'), delegateData)
 }
 
-export const deleteDelegate = async (id: string, delegates: Delegate[], groups: Group[]) => {
+export const deleteDelegate = async (id: string, groups: Group[]) => {
   // Find if in group
   const group = groups.find(g => g.delegateIds.includes(id))
   if (group) {
