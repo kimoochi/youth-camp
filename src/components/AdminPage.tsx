@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { CHURCHES, getChurchName } from '../types'
-import type { ChurchId, Delegate, Group } from '../types'
+import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
 import { generateGroupListPDF } from '../utils/pdfGenerator'
 
 interface AdminPageProps {
@@ -28,7 +28,7 @@ interface AdminPageProps {
   showToast: (message: string, type: 'success'|'error'|'info') => void
 }
 
-type SidebarTab = 'unpaid' | 'late' | 'unassigned';
+type SidebarTab = 'unpaid' | 'late' | 'unassigned' | 'leaders'
 
 function AdminPage({
   unpaidDelegates,
@@ -39,7 +39,6 @@ function AdminPage({
   onSetAdminChurchFilter,
   onAutoGroup,
   onTogglePayment,
-  onDropToLate,
   onDropToGroup,
   onDragStart,
   onPrintIDs,
@@ -53,22 +52,22 @@ function AdminPage({
   showToast
 }: AdminPageProps) {
   
-  const [creationModal, setCreationModal] = useState<{groupId: string, role: 'Leader'|'Assistant Leader'} | null>(null);
-  const [modalTab, setModalTab] = useState<'create' | 'existing'>('create');
-  const [existingDelegateId, setExistingDelegateId] = useState<string>('');
-  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid');
-  const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null);
-  const [formData, setFormData] = useState({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male', birthday: '', category: 'Young Professional', tshirtSize: 'M' });
+  const [creationModal, setCreationModal] = useState<{groupId: string, role: 'Leader'|'Assistant Leader'} | null>(null)
+  const [modalTab, setModalTab] = useState<'create' | 'existing'>('create')
+  const [existingDelegateId, setExistingDelegateId] = useState<string>('')
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid')
+  const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null)
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male' as 'Male'|'Female', birthday: '', category: 'Young Professional', tshirtSize: 'M' as TShirtSize })
 
   const handleCreateSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!creationModal) return;
+    e.preventDefault()
+    if (!creationModal) return
     onCreateLeadership({
       firstName: formData.firstName,
       lastName: formData.lastName,
       church: formData.church as ChurchId,
       age: 0,
-      gender: formData.gender as "Male" | "Female",
+      gender: formData.gender,
       birthday: '2000-01-01',
       category: 'Young Professional',
       tshirtSize: 'M',
@@ -76,9 +75,9 @@ function AdminPage({
       paymentMethod: 'ONSITE',
       role: creationModal.role,
       createdAt: new Date().toISOString()
-    }, creationModal.groupId);
-    setCreationModal(null);
-    setFormData({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male', birthday: '', category: 'Young Professional', tshirtSize: 'M' });
+    }, creationModal.groupId)
+    setCreationModal(null)
+    setFormData({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male', birthday: '', category: 'Young Professional', tshirtSize: 'M' })
   }
 
   const filterByChurch = (list: Delegate[]) => {
@@ -86,11 +85,13 @@ function AdminPage({
     return list.filter(d => d.church === adminChurchFilter)
   }
 
-  const visibleUnpaid = filterByChurch(unpaidDelegates)
-  
-  // Late vs Unassigned Logic
-  const lateDelegates = unassignedPaidDelegates.filter(d => d.createdAt >= '2026-05-05')
-  const regularUnassigned = unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05')
+  const sortByLastName = (list: Delegate[]) => 
+    [...list].sort((a, b) => a.lastName.localeCompare(b.lastName))
+
+  const visibleUnpaid = sortByLastName(filterByChurch(unpaidDelegates))
+  const lateDelegates = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt >= '2026-05-05'))
+  const regularUnassigned = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05'))
+  const visibleLeaders = sortByLastName(filterByChurch(delegates.filter(d => d.role === 'Leader' || d.role === 'Assistant Leader')))
 
   const sortedGroups = [...groups].sort((a, b) => {
     const num = (name: string) => {
@@ -101,298 +102,419 @@ function AdminPage({
   })
 
   const getSlideOffset = () => {
-    if (activeSidebarTab === 'unpaid') return '0%';
-    if (activeSidebarTab === 'late') return '-100%';
-    if (activeSidebarTab === 'unassigned') return '-200%';
-    return '0%';
-  };
+    if (activeSidebarTab === 'unpaid') return '0%'
+    if (activeSidebarTab === 'late') return '-100%'
+    if (activeSidebarTab === 'unassigned') return '-200%'
+    if (activeSidebarTab === 'leaders') return '-300%'
+    return '0%'
+  }
 
   return (
-    <div className="dashboard-fixed-viewport">
-      <header className="topbar">
-        <div>
-          <div className="camp-title">Youth Camp 2026</div>
-          <div className="camp-subtitle">Admin Dashboard</div>
+    <div className="admin-viewport">
+      <header className="admin-topbar">
+        <div className="admin-topbar-left">
+          <h1 className="admin-topbar-title">Youth Camp 2026</h1>
+          <span className="admin-topbar-sub">Admin Dashboard</span>
         </div>
-        <div style={{display:'flex', gap:'1rem', alignItems:'center'}}>
-           <select
-             value={adminChurchFilter}
-             onChange={(e) => {
-               const v = e.target.value
-               onSetAdminChurchFilter(v === 'ALL' ? 'ALL' : (v as ChurchId))
-             }}
-             style={{padding:'0.4rem', fontSize:'0.8rem', borderRadius:'4px'}}
-           >
-             <option value="ALL">All Churches</option>
-             {CHURCHES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-           </select>
-           <button className="primary small" onClick={onAutoGroup}>Auto Group</button>
-           <button className="topbar-button" onClick={onGoToRegistration}>Exit</button>
+        <div className="admin-topbar-right">
+          <select
+            value={adminChurchFilter}
+            onChange={(e) => {
+              const v = e.target.value
+              onSetAdminChurchFilter(v === 'ALL' ? 'ALL' : (v as ChurchId))
+            }}
+            className="admin-church-filter"
+          >
+            <option value="ALL">All Churches</option>
+            {CHURCHES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <button className="admin-autogroup-btn" onClick={onAutoGroup}>Auto Group</button>
+          <button className="admin-exit-btn" onClick={onGoToRegistration}>Exit</button>
         </div>
       </header>
 
-      <div className="dashboard-container">
-        {/* Sidebar */}
-        <aside className="dashboard-sidebar" style={{display:'flex', flexDirection:'column'}}>
-           <div className="sidebar-tabs">
-              <button 
-                className={`sidebar-tab ${activeSidebarTab === 'unpaid' ? 'active' : ''}`}
-                onClick={() => setActiveSidebarTab('unpaid')}
-              >
-                Unpaid ({visibleUnpaid.length})
-              </button>
-              <button 
-                className={`sidebar-tab ${activeSidebarTab === 'late' ? 'active' : ''}`}
-                onClick={() => setActiveSidebarTab('late')}
-              >
-                Late ({lateDelegates.length})
-              </button>
-              <button 
-                className={`sidebar-tab ${activeSidebarTab === 'unassigned' ? 'active' : ''}`}
-                onClick={() => setActiveSidebarTab('unassigned')}
-              >
-                Ungrouped ({regularUnassigned.length})
-              </button>
-           </div>
+      <div className="admin-layout">
+        <aside className="admin-sidebar">
+          <div className="sidebar-tabs">
+            <button className={`sidebar-tab ${activeSidebarTab === 'unpaid' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('unpaid')}>
+              Unpaid <span className="tab-badge danger">{visibleUnpaid.length}</span>
+            </button>
+            <button className={`sidebar-tab ${activeSidebarTab === 'late' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('late')}>
+              Late <span className="tab-badge warning">{lateDelegates.length}</span>
+            </button>
+            <button className={`sidebar-tab ${activeSidebarTab === 'unassigned' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('unassigned')}>
+              Ungrouped <span className="tab-badge info">{regularUnassigned.length}</span>
+            </button>
+            <button className={`sidebar-tab ${activeSidebarTab === 'leaders' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('leaders')}>
+              Leaders <span className="tab-badge purple">{visibleLeaders.length}</span>
+            </button>
+          </div>
 
-           <div className="sidebar-content-wrapper">
-              <div className="sidebar-slide-container" style={{ transform: `translateX(${getSlideOffset()})` }}>
-                 
-                 {/* PANE: UNPAID */}
-                 <div className="sidebar-pane" onDragOver={e=>e.preventDefault()} onDrop={onDropToLate}>
-                   <div className="delegate-list">
-                      {visibleUnpaid.map(d => (
-                        <div key={d.id} className="delegate-card" draggable onDragStart={() => onDragStart(d.id)}>
-                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                             <div style={{flex:1}}>
-                               <div className="delegate-name">{d.lastName}, {d.firstName}</div>
-                               <div className="delegate-meta">{getChurchName(d.church)}</div>
-                             </div>
-                             <button className="delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>✕</button>
-                           </div>
-                           <div style={{display:'flex', gap:'0.4rem', marginTop:'0.25rem'}}>
-                             <button className="primary small" style={{flex:1.5, fontSize:'0.6rem'}} onClick={() => onTogglePayment(d.id, 'UNPAID')}>
-                               PAID
-                             </button>
-                             <button className="ghost small" style={{flex:1, fontSize:'0.6rem'}} onClick={() => setSelectedDelegate(d)}>
-                               DETAILS
-                             </button>
-                           </div>
-                        </div>
-                      ))}
-                     {visibleUnpaid.length === 0 && <p style={{textAlign:'center', padding:'2rem', color:'#999', fontSize:'0.8rem'}}>No unpaid delegates.</p>}
-                   </div>
-                 </div>
-
-                 {/* PANE: LATE */}
-                 <div className="sidebar-pane" onDragOver={e=>e.preventDefault()} onDrop={onDropToLate}>
-                   <div className="delegate-list">
-                     {lateDelegates.map(d => (
-                       <div key={d.id} className="delegate-card" draggable onDragStart={() => onDragStart(d.id)}>
-                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                            <div style={{flex:1}}>
-                              <div className="delegate-name">{d.lastName}, {d.firstName}</div>
-                              <div className="delegate-meta">{getChurchName(d.church)}</div>
-                            </div>
-                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>✕</button>
-                          </div>
-                          <button className="ghost small" style={{marginTop:'0.4rem', width:'100%', fontSize:'0.6rem'}} onClick={()=>onTogglePayment(d.id, 'PAID')}>Undo</button>
-                       </div>
-                     ))}
-                     {lateDelegates.length === 0 && <p style={{textAlign:'center', padding:'2rem', color:'#999', fontSize:'0.8rem'}}>No late registrations.</p>}
-                   </div>
-                 </div>
-
-                 {/* PANE: UNASSIGNED */}
-                 <div className="sidebar-pane" onDragOver={e=>e.preventDefault()} onDrop={onDropToLate}>
-                   <div className="delegate-list">
-                     {regularUnassigned.map(d => (
-                       <div key={d.id} className="delegate-card" draggable onDragStart={() => onDragStart(d.id)}>
-                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                            <div style={{flex:1}}>
-                              <div className="delegate-name">{d.lastName}, {d.firstName}</div>
-                              <div className="delegate-meta">{getChurchName(d.church)}</div>
-                            </div>
-                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteDelegate(d.id); }}>✕</button>
-                          </div>
-                          <button className="ghost small" style={{marginTop:'0.4rem', width:'100%', fontSize:'0.6rem'}} onClick={()=>onTogglePayment(d.id, 'PAID')}>Undo</button>
-                       </div>
-                     ))}
-                     {regularUnassigned.length === 0 && <p style={{textAlign:'center', padding:'2rem', color:'#999', fontSize:'0.8rem'}}>All regular delegates are assigned.</p>}
-                   </div>
-                 </div>
-
-              </div>
-           </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="dashboard-main">
-           {creationModal && (
-             <div className="modal-overlay">
-               <div className="modal-card">
-                 <h2 style={{fontSize:'1.2rem', marginBottom:'1rem'}}>{creationModal.role}</h2>
-                 <div style={{display:'flex', gap:'1rem', marginBottom:'1rem', borderBottom:'1px solid #eee', paddingBottom:'0.5rem'}}>
-                    <button className={`ghost small ${modalTab==='create'?'primary':''}`} onClick={()=>setModalTab('create')}>New</button>
-                    <button className={`ghost small ${modalTab==='existing'?'primary':''}`} onClick={()=>setModalTab('existing')}>Existing</button>
-                 </div>
-                 
-                 {modalTab === 'create' ? (
-                   <form onSubmit={handleCreateSubmit} className="form-grid-compact">
-                      <div className="field-group half"><label>First</label><input required value={formData.firstName} onChange={e=>setFormData({...formData, firstName: e.target.value})} /></div>
-                      <div className="field-group half"><label>Last</label><input required value={formData.lastName} onChange={e=>setFormData({...formData, lastName: e.target.value})} /></div>
-                      <div className="field-group half"><label>Church</label><select value={formData.church} onChange={e=>setFormData({...formData, church: e.target.value})}>{CHURCHES.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                      <div className="field-group half"><label>Gender</label><select value={formData.gender} onChange={e=>setFormData({...formData, gender: e.target.value})}><option>Male</option><option>Female</option></select></div>
-                      <div style={{gridColumn:'span 2', display:'flex', gap:'1rem', marginTop:'1rem'}}><button type="button" className="ghost large" onClick={()=>setCreationModal(null)}>Cancel</button><button type="submit" className="primary large">Create</button></div>
-                   </form>
-                 ) : (
-                   <div>
-                      <div className="field-group"><label>Select Delegate</label><select value={existingDelegateId} onChange={e=>setExistingDelegateId(e.target.value)}><option value="">-- Choose --</option>{delegates.filter(d=>d.role!=='Leader' && d.role!=='Assistant Leader').map(d=><option key={d.id} value={d.id}>{d.lastName}, {d.firstName}</option>)}</select></div>
-                      <div style={{display:'flex', gap:'1rem', marginTop:'1.5rem'}}><button type="button" className="ghost large" onClick={()=>setCreationModal(null)}>Cancel</button><button type="button" className="primary large" disabled={!existingDelegateId} onClick={()=>{onAssignExistingLeadership(existingDelegateId, creationModal.groupId, creationModal.role); setCreationModal(null); setExistingDelegateId('');}}>Assign</button></div>
-                   </div>
-                 )}
-               </div>
-             </div>
-           )}
-
-           {selectedDelegate && (
-             <div className="modal-overlay">
-               <div className="modal-card">
-                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem'}}>
-                   <h2 style={{margin:0, fontSize:'1.2rem'}}>Delegate Details</h2>
-                   <button className="delete-btn" onClick={()=>setSelectedDelegate(null)}>✕</button>
-                 </div>
-                 
-                 <form className="form-grid-compact" onSubmit={async (e) => {
-                   e.preventDefault();
-                   const form = e.target as HTMLFormElement;
-                   const updates = {
-                     firstName: (form.elements.namedItem('firstName') as HTMLInputElement).value,
-                     lastName: (form.elements.namedItem('lastName') as HTMLInputElement).value,
-                     age: Number((form.elements.namedItem('age') as HTMLInputElement).value),
-                     tshirtSize: (form.elements.namedItem('tshirtSize') as HTMLSelectElement).value as any,
-                     category: (form.elements.namedItem('category') as HTMLSelectElement).value as any,
-                     gender: (form.elements.namedItem('gender') as HTMLSelectElement).value as any,
-                   };
-                   try {
-                     await onUpdateDelegate(selectedDelegate.id, updates);
-                     setSelectedDelegate(null);
-                     showToast('Delegate updated', 'success');
-                   } catch {
-                     showToast('Update failed', 'error');
-                   }
-                 }}>
-                    <div className="field-group half"><label>First Name</label><input name="firstName" defaultValue={selectedDelegate.firstName} required /></div>
-                    <div className="field-group half"><label>Last Name</label><input name="lastName" defaultValue={selectedDelegate.lastName} required /></div>
-                    <div className="field-group half"><label>Age</label><input name="age" type="number" defaultValue={selectedDelegate.age} required /></div>
-                    <div className="field-group half"><label>Gender</label><select name="gender" defaultValue={selectedDelegate.gender}><option>Male</option><option>Female</option></select></div>
-                    <div className="field-group half"><label>Size</label>
-                      <select name="tshirtSize" defaultValue={selectedDelegate.tshirtSize}>
-                        <option>10</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option>
-                        <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
-                      </select>
+          <div className="sidebar-content">
+            <div className="sidebar-slides" style={{ transform: `translateX(${getSlideOffset()})` }}>
+              <div className="sidebar-pane">
+                {visibleUnpaid.length > 0 ? visibleUnpaid.map(d => (
+                  <div key={d.id} className="delegate-row" draggable onDragStart={() => onDragStart(d.id)}>
+                    <div className="delegate-row-main">
+                      <span className="delegate-row-name">{d.lastName}, {d.firstName}</span>
+                      <span className="delegate-row-church">{getChurchName(d.church)}</span>
                     </div>
-                    <div className="field-group full"><label>Category</label>
-                      <select name="category" defaultValue={selectedDelegate.category}>
-                        <option>High School (JHS)</option><option>High School (SHS)</option><option>College</option><option>Young Professional</option>
-                      </select>
-                    </div>
-                    <div className="modal-actions">
-                      <button type="button" className="ghost large" onClick={()=>setSelectedDelegate(null)}>Close</button>
-                      <button type="submit" className="primary large">Save Changes</button>
-                    </div>
-                 </form>
-               </div>
-             </div>
-           )}
-
-           <div className="groups-grid">
-              {sortedGroups.map(g => {
-                const members = g.delegateIds.map(id => delegates.find(d => d.id === id)).filter((d): d is Delegate => !!d)
-                const leader = members.find(m => m.role === 'Leader')
-                const assistants = members.filter(m => m.role === 'Assistant Leader')
-                const standard = members.filter(m => m.role !== 'Leader' && m.role !== 'Assistant Leader')
-
-                return (
-                  <div key={g.id} className="group-card shadow-sm" onDragOver={e=>e.preventDefault()} onDrop={()=>onDropToGroup(g.id)} style={{background:'white', padding:'0.75rem'}}>
-                    <div className="group-header" style={{borderBottom:'1px solid #eee', paddingBottom:'0.25rem', marginBottom:'0.5rem'}}>
-                      <input value={g.name} onChange={e=>onRenameGroup(g.id, e.target.value)} className="group-name-input" />
-                      <span className="badge black">{members.length}</span>
-                    </div>
-                    
-                    <div style={{display:'flex', gap:'0.25rem', marginBottom:'0.5rem'}}>
-                      <button className="ghost small" style={{flex:1, fontSize:'0.6rem'}} onClick={()=>generateGroupListPDF(g, delegates)}>PDF</button>
-                      <button className="primary small" style={{flex:1, fontSize:'0.6rem'}} onClick={()=>onPrintIDs(g.id)}>IDs</button>
-                    </div>
-
-                    <div style={{background:'#f9fafb', border:'1px dashed #ddd', padding:'0.4rem', borderRadius:'6px', marginBottom:'0.5rem'}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                        <span style={{fontSize:'0.6rem', fontWeight:'900', color:'#ea580c'}}>LEADER</span>
-                        {!leader && <button className="ghost small" style={{fontSize:'0.6rem', border:'none', padding:0}} onClick={()=>setCreationModal({groupId:g.id, role:'Leader'})}>+ ADD</button>}
-                      </div>
-                      {leader && (
-                        <div className="delegate-card compact" style={{borderLeft:`4px solid ${leader.paymentStatus === 'PAID' ? '#16a34a' : '#ea580c'}`, margin:'0.2rem 0', padding:'0.3rem'}}>
-                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <div style={{fontSize:'0.75rem', fontWeight:'600'}}>
-                              {leader.lastName}, {leader.firstName}
-                              {leader.paymentStatus === 'PAID' && <span style={{marginLeft:'4px', color:'#16a34a', fontSize:'0.6rem'}}>● PAID</span>}
-                            </div>
-                            <div style={{display:'flex', gap:'2px'}}>
-                              <button className="delete-btn" title="Delete Entirely" onClick={()=>onDeleteDelegate(leader.id)}>✕</button>
-                            </div>
-                          </div>
-                          <div style={{display:'flex', gap:'0.25rem', marginTop:'0.2rem'}}>
-                             <button className="ghost small" style={{fontSize:'0.5rem', padding:'1px 4px', border:'1px solid #ddd'}} onClick={()=>onTogglePayment(leader.id, leader.paymentStatus)}>
-                               {leader.paymentStatus === 'PAID' ? 'Mark Unpaid' : 'Mark PAID'}
-                             </button>
-                             <button className="ghost small" style={{fontSize:'0.5rem', padding:'1px 4px', border:'1px solid #ddd', color:'#ef4444'}} onClick={()=>onRemoveLeadership(leader.id)}>Demote</button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'0.5rem'}}>
-                        <span style={{fontSize:'0.6rem', fontWeight:'900', color:'#f59e0b'}}>ASST</span>
-                        <button className="ghost small" style={{fontSize:'0.6rem', border:'none', padding:0}} onClick={()=>setCreationModal({groupId:g.id, role:'Assistant Leader'})}>+ ADD</button>
-                      </div>
-                      {assistants.map(a => (
-                        <div key={a.id} className="delegate-card compact" style={{borderLeft:`4px solid ${a.paymentStatus === 'PAID' ? '#16a34a' : '#f59e0b'}`, margin:'0.2rem 0', padding:'0.3rem'}}>
-                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <div style={{fontSize:'0.75rem', fontWeight:'600'}}>
-                              {a.lastName}, {a.firstName}
-                              {a.paymentStatus === 'PAID' && <span style={{marginLeft:'4px', color:'#16a34a', fontSize:'0.6rem'}}>● PAID</span>}
-                            </div>
-                            <button className="delete-btn" onClick={()=>onDeleteDelegate(a.id)}>✕</button>
-                          </div>
-                          <div style={{display:'flex', gap:'0.25rem', marginTop:'0.2rem'}}>
-                             <button className="ghost small" style={{fontSize:'0.5rem', padding:'1px 4px', border:'1px solid #ddd'}} onClick={()=>onTogglePayment(a.id, a.paymentStatus)}>
-                               {a.paymentStatus === 'PAID' ? 'Mark Unpaid' : 'Mark PAID'}
-                             </button>
-                             <button className="ghost small" style={{fontSize:'0.5rem', padding:'1px 4px', border:'1px solid #ddd', color:'#ef4444'}} onClick={()=>onRemoveLeadership(a.id)}>Demote</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{fontSize:'0.6rem', fontWeight:'800', color:'#999', marginBottom:'0.2rem'}}>MEMBERS</div>
-                    <div className="delegate-list" style={{gap:'0.2rem'}}>
-                      {standard.map(m => (
-                        <div key={m.id} className="delegate-card" draggable onDragStart={()=>onDragStart(m.id)} style={{margin:0, padding:'0.3rem 0.5rem'}}>
-                           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                             <span style={{fontSize:'0.7rem'}}>{m.lastName}, {m.firstName}</span>
-                             <div style={{display:'flex', gap:'4px'}}>
-                               <button className="ghost small" style={{fontSize:'0.5rem', padding:'2px 4px', border:'none'}} onClick={()=>setSelectedDelegate(m)}>Details</button>
-                               <button className="delete-btn" onClick={()=>onDeleteDelegate(m.id)}>✕</button>
-                             </div>
-                           </div>
-                        </div>
-                      ))}
+                    <div className="delegate-row-actions">
+                      <button className="action-btn paid-btn" onClick={() => onTogglePayment(d.id, 'UNPAID')}>PAID</button>
+                      <button className="action-btn edit-btn" onClick={() => setSelectedDelegate(d)}>Edit</button>
+                      <button className="action-btn delete-btn" onClick={() => onDeleteDelegate(d.id)}>X</button>
                     </div>
                   </div>
-                )
-              })}
-           </div>
+                )) : <div className="empty-state">No unpaid delegates</div>}
+              </div>
+
+              <div className="sidebar-pane">
+                {lateDelegates.length > 0 ? lateDelegates.map(d => (
+                  <div key={d.id} className="delegate-row" draggable onDragStart={() => onDragStart(d.id)}>
+                    <div className="delegate-row-main">
+                      <span className="delegate-row-name">{d.lastName}, {d.firstName}</span>
+                      <span className="delegate-row-church">{getChurchName(d.church)}</span>
+                    </div>
+                    <div className="delegate-row-actions">
+                      <button className="action-btn undo-btn" onClick={() => onTogglePayment(d.id, 'PAID')}>Undo</button>
+                      <button className="action-btn delete-btn" onClick={() => onDeleteDelegate(d.id)}>X</button>
+                    </div>
+                  </div>
+                )) : <div className="empty-state">No late registrations</div>}
+              </div>
+
+              <div className="sidebar-pane">
+                {regularUnassigned.length > 0 ? regularUnassigned.map(d => (
+                  <div key={d.id} className="delegate-row" draggable onDragStart={() => onDragStart(d.id)}>
+                    <div className="delegate-row-main">
+                      <span className="delegate-row-name">{d.lastName}, {d.firstName}</span>
+                      <span className="delegate-row-church">{getChurchName(d.church)}</span>
+                    </div>
+                    <div className="delegate-row-actions">
+                      <button className="action-btn undo-btn" onClick={() => onTogglePayment(d.id, 'PAID')}>Undo</button>
+                      <button className="action-btn delete-btn" onClick={() => onDeleteDelegate(d.id)}>X</button>
+                    </div>
+                  </div>
+                )) : <div className="empty-state">All paid delegates grouped</div>}
+              </div>
+
+              <div className="sidebar-pane">
+                {visibleLeaders.length > 0 ? visibleLeaders.map(d => (
+                  <div key={d.id} className="delegate-row leader-row">
+                    <div className="delegate-row-main">
+                      <span className="delegate-row-name">{d.lastName}, {d.firstName}</span>
+                      <span className="delegate-row-church">{getChurchName(d.church)}</span>
+                      <span className={`role-tag ${d.role?.toLowerCase().replace(' ', '-')}`}>{d.role}</span>
+                    </div>
+                    <div className="delegate-row-actions">
+                      <button className={`action-btn ${d.paymentStatus === 'PAID' ? 'paid-btn' : 'unpaid-btn'}`} onClick={() => onTogglePayment(d.id, d.paymentStatus)}>
+                        {d.paymentStatus}
+                      </button>
+                      <button className="action-btn edit-btn" onClick={() => setSelectedDelegate(d)}>Edit</button>
+                      <button className="action-btn delete-btn" onClick={() => onDeleteDelegate(d.id)}>X</button>
+                    </div>
+                  </div>
+                )) : <div className="empty-state">No leaders registered</div>}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="admin-main" onDragOver={e => e.preventDefault()} onDrop={() => {}}>
+          <div className="groups-grid">
+            {sortedGroups.map(g => {
+              const members = g.delegateIds.map(id => delegates.find(d => d.id === id)).filter((d): d is Delegate => !!d)
+              const leader = members.find(m => m.role === 'Leader')
+              const assistants = members.filter(m => m.role === 'Assistant Leader')
+              const standard = members.filter(m => m.role !== 'Leader' && m.role !== 'Assistant Leader')
+
+              return (
+                <div key={g.id} className="group-card" onDragOver={e => e.preventDefault()} onDrop={() => onDropToGroup(g.id)}>
+                  <div className="group-card-header">
+                    <input 
+                      value={g.name} 
+                      onChange={e => onRenameGroup(g.id, e.target.value)} 
+                      className="group-name-input"
+                    />
+                    <span className="member-count">{members.length}</span>
+                  </div>
+                  
+                  <div className="group-card-actions">
+                    <button className="group-btn" onClick={() => generateGroupListPDF(g, delegates)}>PDF</button>
+                    <button className="group-btn primary" onClick={() => onPrintIDs(g.id)}>Print IDs</button>
+                  </div>
+
+                  {leader && (
+                    <div className="role-section leader-section">
+                      <div className="role-header">
+                        <span>LEADER</span>
+                        {!leader && <button className="add-role-btn" onClick={() => setCreationModal({groupId: g.id, role: 'Leader'})}>+ Add</button>}
+                      </div>
+                      <div className="member-card leader-card">
+                        <div className="member-info">
+                          <span className="member-name">{leader.lastName}, {leader.firstName}</span>
+                          <span className={`status-tag ${leader.paymentStatus.toLowerCase()}`}>{leader.paymentStatus}</span>
+                        </div>
+                        <div className="member-quick-edit">
+                          <span className="quick-label">Size:</span>
+                          <select 
+                            value={leader.tshirtSize}
+                            onChange={async (e) => {
+                              try {
+                                await onUpdateDelegate(leader.id, { tshirtSize: e.target.value as TShirtSize })
+                                showToast('Size updated', 'success')
+                              } catch {
+                                showToast('Update failed', 'error')
+                              }
+                            }}
+                            className="tshirt-select"
+                          >
+                            <option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                            <option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                          </select>
+                        </div>
+                        <div className="member-actions">
+                          <button className="member-btn" onClick={() => onTogglePayment(leader.id, leader.paymentStatus)}>{leader.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
+                          <button className="member-btn" onClick={() => onRemoveLeadership(leader.id)}>Demote</button>
+                          <button className="member-btn danger" onClick={() => onDeleteDelegate(leader.id)}>Delete</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!leader && (
+                    <div className="role-section leader-section empty">
+                      <div className="role-header">
+                        <span>LEADER</span>
+                        <button className="add-role-btn" onClick={() => setCreationModal({groupId: g.id, role: 'Leader'})}>+ Add</button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="role-section assistant-section">
+                    <div className="role-header">
+                      <span>ASSISTANT</span>
+                      <button className="add-role-btn" onClick={() => setCreationModal({groupId: g.id, role: 'Assistant Leader'})}>+ Add</button>
+                    </div>
+                    {assistants.map(a => (
+                      <div key={a.id} className="member-card assistant-card">
+                        <div className="member-info">
+                          <span className="member-name">{a.lastName}, {a.firstName}</span>
+                          <span className={`status-tag ${a.paymentStatus.toLowerCase()}`}>{a.paymentStatus}</span>
+                        </div>
+                        <div className="member-quick-edit">
+                          <span className="quick-label">Size:</span>
+                          <select 
+                            value={a.tshirtSize}
+                            onChange={async (e) => {
+                              try {
+                                await onUpdateDelegate(a.id, { tshirtSize: e.target.value as TShirtSize })
+                                showToast('Size updated', 'success')
+                              } catch {
+                                showToast('Update failed', 'error')
+                              }
+                            }}
+                            className="tshirt-select"
+                          >
+                            <option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                            <option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                          </select>
+                        </div>
+                        <div className="member-actions">
+                          <button className="member-btn" onClick={() => onTogglePayment(a.id, a.paymentStatus)}>{a.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
+                          <button className="member-btn" onClick={() => onRemoveLeadership(a.id)}>Demote</button>
+                          <button className="member-btn danger" onClick={() => onDeleteDelegate(a.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="members-section">
+                    <span className="section-label">MEMBERS</span>
+                    {standard.map(m => (
+                      <div key={m.id} className="member-card compact" draggable onDragStart={() => onDragStart(m.id)}>
+                        <div className="member-info">
+                          <span className="member-name">{m.lastName}, {m.firstName}</span>
+                          <span className={`status-tag ${m.paymentStatus.toLowerCase()}`}>{m.paymentStatus}</span>
+                        </div>
+                        <div className="member-quick-edit">
+                          <span className="quick-label">Size:</span>
+                          <select 
+                            value={m.tshirtSize}
+                            onChange={async (e) => {
+                              try {
+                                await onUpdateDelegate(m.id, { tshirtSize: e.target.value as TShirtSize })
+                                showToast('Size updated', 'success')
+                              } catch {
+                                showToast('Update failed', 'error')
+                              }
+                            }}
+                            className="tshirt-select"
+                          >
+                            <option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                            <option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                          </select>
+                        </div>
+                        <div className="member-actions">
+                          <button className="member-btn" onClick={() => setSelectedDelegate(m)}>Edit</button>
+                          <button className="member-btn danger" onClick={() => onDeleteDelegate(m.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="drop-zone-hint">Drop delegates here</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </main>
       </div>
+
+      {creationModal && (
+        <div className="modal-overlay" onClick={() => setCreationModal(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title">{creationModal.role}</h2>
+            <div className="modal-tabs">
+              <button className={`modal-tab-btn ${modalTab === 'create' ? 'active' : ''}`} onClick={() => setModalTab('create')}>New</button>
+              <button className={`modal-tab-btn ${modalTab === 'existing' ? 'active' : ''}`} onClick={() => setModalTab('existing')}>Existing</button>
+            </div>
+            
+            {modalTab === 'create' ? (
+              <form onSubmit={handleCreateSubmit} className="modal-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>First Name</label>
+                    <input required value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label>Last Name</label>
+                    <input required value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Church</label>
+                    <select value={formData.church} onChange={e => setFormData({...formData, church: e.target.value})}>
+                      {CHURCHES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Gender</label>
+                    <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as 'Male'|'Female'})}>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="modal-cancel" onClick={() => setCreationModal(null)}>Cancel</button>
+                  <button type="submit" className="modal-submit">Create</button>
+                </div>
+              </form>
+            ) : (
+              <div className="modal-form">
+                <div className="form-group">
+                  <label>Select Delegate</label>
+                  <select value={existingDelegateId} onChange={e => setExistingDelegateId(e.target.value)}>
+                    <option value="">-- Choose --</option>
+                    {delegates.filter(d => d.role !== 'Leader' && d.role !== 'Assistant Leader').map(d => (
+                      <option key={d.id} value={d.id}>{d.lastName}, {d.firstName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="modal-cancel" onClick={() => setCreationModal(null)}>Cancel</button>
+                  <button 
+                    type="button" 
+                    className="modal-submit" 
+                    disabled={!existingDelegateId} 
+                    onClick={() => {
+                      onAssignExistingLeadership(existingDelegateId, creationModal.groupId, creationModal.role)
+                      setCreationModal(null)
+                      setExistingDelegateId('')
+                    }}
+                  >
+                    Assign
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {selectedDelegate && (
+        <div className="modal-overlay" onClick={() => setSelectedDelegate(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">Edit Delegate</h2>
+              <button className="modal-close" onClick={() => setSelectedDelegate(null)}>X</button>
+            </div>
+            <form className="modal-form" onSubmit={async (e) => {
+              e.preventDefault()
+              const form = e.target as HTMLFormElement
+              const updates = {
+                firstName: (form.elements.namedItem('firstName') as HTMLInputElement).value,
+                lastName: (form.elements.namedItem('lastName') as HTMLInputElement).value,
+                age: Number((form.elements.namedItem('age') as HTMLInputElement).value),
+                tshirtSize: (form.elements.namedItem('tshirtSize') as HTMLSelectElement).value as TShirtSize,
+                category: (form.elements.namedItem('category') as HTMLSelectElement).value as any,
+                gender: (form.elements.namedItem('gender') as HTMLSelectElement).value as 'Male' | 'Female',
+              }
+              try {
+                await onUpdateDelegate(selectedDelegate.id, updates)
+                setSelectedDelegate(null)
+                showToast('Delegate updated', 'success')
+              } catch {
+                showToast('Update failed', 'error')
+              }
+            }}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>First Name</label>
+                  <input name="firstName" defaultValue={selectedDelegate.firstName} required />
+                </div>
+                <div className="form-group">
+                  <label>Last Name</label>
+                  <input name="lastName" defaultValue={selectedDelegate.lastName} required />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Age</label>
+                  <input name="age" type="number" defaultValue={selectedDelegate.age} required />
+                </div>
+                <div className="form-group">
+                  <label>Gender</label>
+                  <select name="gender" defaultValue={selectedDelegate.gender}>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>T-Shirt Size</label>
+                  <select name="tshirtSize" defaultValue={selectedDelegate.tshirtSize}>
+                    <option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                    <option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Category</label>
+                  <select name="category" defaultValue={selectedDelegate.category}>
+                    <option>High School (JHS)</option><option>High School (SHS)</option><option>College</option><option>Young Professional</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="modal-cancel" onClick={() => setSelectedDelegate(null)}>Close</button>
+                <button type="submit" className="modal-submit">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
