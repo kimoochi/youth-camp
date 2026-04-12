@@ -199,7 +199,14 @@ function RegistrationPage({
                           required
                           value={form.birthday}
                           max={new Date().toISOString().slice(0, 10)}
-                          onChange={e => onUpdateBulkForm(index, 'birthday', e.target.value)}
+                          onChange={e => {
+                            const birthday = e.target.value;
+                            onUpdateBulkForm(index, 'birthday', birthday);
+                            const age = getAgeFromBirthday(birthday);
+                            if (age !== null) {
+                              onUpdateBulkForm(index, 'age', age.toString());
+                            }
+                          }}
                         />
                       </div>
                       <div className="reg-field reg-field-sm">
