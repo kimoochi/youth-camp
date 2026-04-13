@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
 import { generateGroupListPDF } from '../utils/pdfGenerator'
+import { moveDelegateToGroup } from '../services/firestoreService'
 
 interface AdminPageProps {
   delegates: Delegate[] 
@@ -15,6 +16,8 @@ interface AdminPageProps {
   onAutoGroup: () => void
   onUndoAutoGroup: () => void
   hasUndoAutoGroup: boolean
+  onClearAllGroups: () => void
+  onToggleGroupLock: (groupId: string, locked: boolean) => void
   onTogglePayment: (id: string, currentStatus: 'PAID'|'UNPAID') => void
   onDropToLate: () => void
   onDropToGroup: (groupId: string) => void
@@ -42,6 +45,8 @@ function AdminPage({
   onAutoGroup,
   onUndoAutoGroup,
   hasUndoAutoGroup,
+  onClearAllGroups,
+  onToggleGroupLock,
   onTogglePayment,
   onDropToGroup,
   onDragStart,
@@ -61,6 +66,7 @@ function AdminPage({
   const [existingDelegateId, setExistingDelegateId] = useState<string>('')
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid')
   const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [formData, setFormData] = useState({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male' as 'Male'|'Female', birthday: '', category: 'Young Professional', tshirtSize: 'M' as TShirtSize })
 
   const handleCreateSubmit = (e: FormEvent) => {
@@ -134,12 +140,17 @@ function AdminPage({
           </select>
           <button className="admin-autogroup-btn" onClick={onAutoGroup}>Auto Group</button>
           {hasUndoAutoGroup && <button className="admin-undo-btn" onClick={onUndoAutoGroup}>Undo</button>}
+          <button className="admin-clear-btn" onClick={onClearAllGroups}>Clear All</button>
           <button className="admin-exit-btn" onClick={onGoToRegistration}>Exit</button>
         </div>
       </header>
 
       <div className="admin-layout">
-        <aside className="admin-sidebar">
+        <aside className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+          <button className={`sidebar-toggle-btn ${sidebarCollapsed ? 'collapsed' : ''}`} onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}>
+            {sidebarCollapsed ? '→' : '←'}
+          </button>
+          {!sidebarCollapsed && <>
           <div className="sidebar-tabs">
             <button className={`sidebar-tab ${activeSidebarTab === 'unpaid' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('unpaid')}>
               Unpaid <span className="tab-badge danger">{visibleUnpaid.length}</span>
@@ -223,6 +234,7 @@ function AdminPage({
               </div>
             </div>
           </div>
+          </>}
         </aside>
 
         <main className="admin-main" onDragOver={e => e.preventDefault()} onDrop={() => {}}>
@@ -234,14 +246,22 @@ function AdminPage({
               const standard = members.filter(m => m.role !== 'Leader' && m.role !== 'Assistant Leader')
 
               return (
-                <div key={g.id} className="group-card" onDragOver={e => e.preventDefault()} onDrop={() => onDropToGroup(g.id)}>
+                <div key={g.id} className={`group-card ${g.locked ? 'locked' : ''}`} onDragOver={e => e.preventDefault()} onDrop={() => onDropToGroup(g.id)}>
                   <div className="group-card-header">
                     <input 
                       value={g.name} 
                       onChange={e => onRenameGroup(g.id, e.target.value)} 
                       className="group-name-input"
+                      disabled={g.locked}
                     />
                     <span className="member-count">{members.length}</span>
+                    <button 
+                      className={`lock-btn ${g.locked ? 'locked' : ''}`} 
+                      onClick={() => onToggleGroupLock(g.id, !g.locked)}
+                      title={g.locked ? 'Unlock group' : 'Lock group'}
+                    >
+                      {g.locked ? '🔒' : '🔓'}
+                    </button>
                   </div>
                   
                   <div className="group-card-actions">
@@ -257,7 +277,7 @@ function AdminPage({
                       </div>
                       <div className="member-card leader-card">
                         <div className="member-info">
-                          <span className="member-name">{leader.lastName}, {leader.firstName}</span>
+                          <span className="member-name">{leader.lastName}, {leader.firstName} <span className="member-age">({leader.age})</span></span>
                           <span className={`status-tag ${leader.paymentStatus.toLowerCase()}`}>{leader.paymentStatus}</span>
                         </div>
                         <div className="member-quick-edit">
@@ -304,7 +324,7 @@ function AdminPage({
                     {assistants.map(a => (
                       <div key={a.id} className="member-card assistant-card">
                         <div className="member-info">
-                          <span className="member-name">{a.lastName}, {a.firstName}</span>
+                          <span className="member-name">{a.lastName}, {a.firstName} <span className="member-age">({a.age})</span></span>
                           <span className={`status-tag ${a.paymentStatus.toLowerCase()}`}>{a.paymentStatus}</span>
                         </div>
                         <div className="member-quick-edit">
@@ -339,7 +359,7 @@ function AdminPage({
                     {standard.map(m => (
                       <div key={m.id} className="member-card compact" draggable onDragStart={() => onDragStart(m.id)}>
                         <div className="member-info">
-                          <span className="member-name">{m.lastName}, {m.firstName}</span>
+                          <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
                           <span className={`status-tag ${m.paymentStatus.toLowerCase()}`}>{m.paymentStatus}</span>
                         </div>
                         <div className="member-quick-edit">
@@ -361,6 +381,26 @@ function AdminPage({
                           </select>
                         </div>
                         <div className="member-actions">
+                          <select 
+                            className="move-select"
+                            onChange={async (e) => {
+                              if (e.target.value) {
+                                try {
+                                  await moveDelegateToGroup(m.id, e.target.value)
+                                  showToast('Moved to group', 'success')
+                                } catch {
+                                  showToast('Failed to move', 'error')
+                                }
+                                e.target.value = ''
+                              }
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Move to...</option>
+                            {groups.filter(gr => gr.id !== g.id).map(gr => (
+                              <option key={gr.id} value={gr.id}>{gr.name}</option>
+                            ))}
+                          </select>
                           <button className="member-btn" onClick={() => setSelectedDelegate(m)}>Edit</button>
                           <button className="member-btn danger" onClick={() => onDeleteDelegate(m.id)}>Delete</button>
                         </div>
@@ -417,16 +457,16 @@ function AdminPage({
                 </div>
               </form>
             ) : (
-              <div className="modal-form">
-                <div className="form-group">
-                  <label>Select Delegate</label>
-                  <select value={existingDelegateId} onChange={e => setExistingDelegateId(e.target.value)}>
-                    <option value="">-- Choose --</option>
-                    {delegates.filter(d => d.role !== 'Leader' && d.role !== 'Assistant Leader').map(d => (
-                      <option key={d.id} value={d.id}>{d.lastName}, {d.firstName}</option>
-                    ))}
-                  </select>
-                </div>
+                <div className="modal-form">
+                  <div className="form-group">
+                    <label>Select Delegate</label>
+                    <select value={existingDelegateId} onChange={e => setExistingDelegateId(e.target.value)}>
+                      <option value="">-- Choose --</option>
+                      {visibleLeaders.map(d => (
+                        <option key={d.id} value={d.id}>{d.lastName}, {d.firstName} ({d.role})</option>
+                      ))}
+                    </select>
+                  </div>
                 <div className="modal-footer">
                   <button type="button" className="modal-cancel" onClick={() => setCreationModal(null)}>Cancel</button>
                   <button 

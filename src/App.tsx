@@ -17,7 +17,9 @@ import {
   changeDelegateRole,
   createAndAssignLeader,
   deleteDelegate,
-  updateDelegate
+  updateDelegate,
+  toggleGroupLock,
+  clearAllGroups
 } from './services/firestoreService'
 
 export interface RegistrationFormState {
@@ -175,6 +177,25 @@ function App() {
     }
   }
 
+  const handleClearAllGroups = async () => {
+    if (!window.confirm('Clear all member assignments? Leaders/Assistants will stay in their groups.')) return
+    try {
+      await clearAllGroups(groups, delegates)
+      showToast('Members cleared from groups', 'success')
+    } catch {
+      showToast('Failed to clear groups', 'error')
+    }
+  }
+
+  const handleToggleGroupLock = async (groupId: string, locked: boolean) => {
+    try {
+      await toggleGroupLock(groupId, locked)
+      showToast(locked ? 'Group locked' : 'Group unlocked', 'success')
+    } catch {
+      showToast('Failed to update lock status', 'error')
+    }
+  }
+
   const handlePrintIDs = (gid?: string) => {
     try {
       generateIDCards(delegates, groups, gid) 
@@ -292,12 +313,14 @@ function App() {
                 onAutoGroup={handleAutoGroup}
                 onUndoAutoGroup={handleUndoAutoGroup}
                 hasUndoAutoGroup={!!previousGroupsState}
+                onClearAllGroups={handleClearAllGroups}
+                onToggleGroupLock={handleToggleGroupLock}
                 onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups, delegates); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
                 onDropToLate={async () => { if(draggedDelegateId) { await removeDelegateFromGroup(draggedDelegateId); setDraggedDelegateId(null); showToast('Removed from group', 'info') }}}
                 onDropToGroup={async (gid) => { 
                   if(draggedDelegateId) { 
                     try {
-                      await moveDelegateToGroup(draggedDelegateId, gid, delegates); 
+                      await moveDelegateToGroup(draggedDelegateId, gid); 
                       setDraggedDelegateId(null); 
                       showToast('Moved to group', 'success') 
                     } catch (err: any) {
@@ -317,7 +340,7 @@ function App() {
                 }}
                 onAssignExistingLeadership={async (delegateId, gid, role) => {
                   try {
-                    await moveDelegateToGroup(delegateId, gid, delegates);
+                    await moveDelegateToGroup(delegateId, gid);
                     await changeDelegateRole(delegateId, role);
                     showToast('Assigned successfully', 'success');
                   } catch (err: any) {

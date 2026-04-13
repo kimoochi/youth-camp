@@ -52,7 +52,7 @@ export const toggleDelegatePayment = async (delegateId: string, currentStatus: P
   }
 }
 
-// --- AUTO-GROUPING LOGIC (Age Balanced Distribution) ---
+// --- AUTO-GROUPING LOGIC (Church & Name Diversity Distribution) ---
 export const performAutoGrouping = async (delegates: Delegate[], groups: Group[], groupCount: number) => {
   // 1. Get Pool of UNASSIGNED delegates (excluding Leaders & Assistant Leaders)
   // Include BOTH paid and unpaid delegates
@@ -65,8 +65,19 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
 
   if (pool.length === 0) return { success: false, message: 'No unassigned delegates to group.' }
 
-  // 2. Prepare Groups (Local clone)
-  const workingGroups = groups.map(g => ({ ...g, delegateIds: [...g.delegateIds] }))
+  // 2. Prepare Groups - filter out locked groups from auto-grouping
+  const lockedGroups = groups.filter(g => g.locked)
+  const unlockedGroups = groups.filter(g => !g.locked)
+  const workingGroups = unlockedGroups.map(g => ({ ...g, delegateIds: [...g.delegateIds] }))
+  
+  // Locked group's IDs should be excluded from unassigned pool
+  const lockedIds = new Set<string>()
+  lockedGroups.forEach(g => g.delegateIds.forEach(id => lockedIds.add(id)))
+  
+  // Also exclude locked groups' delegates from pool
+  const effectivePool = pool.filter(d => !lockedIds.has(d.id))
+
+  if (effectivePool.length === 0) return { success: false, message: 'All unassigned delegates are already grouped, or groups are locked.' }
 
   // Create groups if they don't exist
   if (workingGroups.length === 0) {
@@ -76,61 +87,58 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
     }
   }
 
-  // 3. Age-balanced distribution using round-robin approach
-  // Sort pool by age (oldest first), then distribute in round-robin
-  const sortedPool = [...pool].sort((a, b) => b.age - a.age)
-
-  // Helper to get average age of a group
-  const getGroupAvgAge = (delegateIds: string[]): number => {
-    if (delegateIds.length === 0) return 0
-    const totalAge = delegateIds.reduce((sum, id) => {
+  // Helper to get last names already in a group
+  const getGroupLastNames = (delegateIds: string[]): Set<string> => {
+    const lastNames = new Set<string>()
+    delegateIds.forEach(id => {
       const d = delegates.find(x => x.id === id)
-      return sum + (d?.age || 0)
-    }, 0)
-    return totalAge / delegateIds.length
+      if (d) lastNames.add(d.lastName.toLowerCase())
+    })
+    return lastNames
   }
 
-  // Helper to find group with lowest average age
-  // This ensures balanced age distribution across groups
-  const findGroupForDelegate = (): number => {
-    let bestGroupIndex = 0
-    let lowestAvgAge = Infinity
-
+  // 3. Sort pool by age (oldest first)
+  const sortedPool = [...effectivePool].sort((a, b) => b.age - a.age)
+  
+  // Round-robin index for fallback
+  let roundRobinIndex = 0
+  
+  sortedPool.forEach((delegate) => {
+    const delegateLastName = delegate.lastName.toLowerCase()
+    
+    // Try to find a group that doesn't have the same last name
+    let targetIndex = -1
+    let smallestSize = Infinity
+    
     workingGroups.forEach((g, idx) => {
-      const avgAge = getGroupAvgAge(g.delegateIds)
-      // Find group with lowest average age
-      // This balances out - putting older people in groups with younger avg age
-      if (avgAge < lowestAvgAge) {
-        lowestAvgAge = avgAge
-        bestGroupIndex = idx
+      const lastNames = getGroupLastNames(g.delegateIds)
+      if (!lastNames.has(delegateLastName) && g.delegateIds.length < smallestSize) {
+        smallestSize = g.delegateIds.length
+        targetIndex = idx
       }
     })
-
-    return bestGroupIndex
-  }
-
-  // Distribute delegates evenly by age
-  sortedPool.forEach(delegate => {
-    const targetIndex = findGroupForDelegate()
+    
+    // If all groups have same last name, use round-robin
+    if (targetIndex === -1) {
+      targetIndex = roundRobinIndex
+      roundRobinIndex = (roundRobinIndex + 1) % workingGroups.length
+    }
+    
     workingGroups[targetIndex].delegateIds.push(delegate.id)
   })
 
-  // 4. Save to Firestore
+  // 4. Save to Firestore (only update unlocked groups)
   try {
     const updates = workingGroups.map(g => updateDoc(doc(db, 'groups', g.id), { delegateIds: g.delegateIds }))
     await Promise.all(updates)
-    return { success: true, message: `Successfully grouped ${pool.length} delegates with balanced ages.` }
+    const lockedCount = lockedGroups.length
+    return { success: true, message: `Grouped ${effectivePool.length} delegates. ${lockedCount > 0 ? `${lockedCount} locked group(s) skipped.` : ''}` }
   } catch {
     return { success: false, message: 'Database error during grouping.' }
   }
 }
 
-export const moveDelegateToGroup = async (delegateId: string, targetGroupId: string, delegates: Delegate[]) => {
-  const delegate = delegates.find(d => d.id === delegateId)
-  if (delegate?.paymentStatus !== 'PAID' && delegate?.role !== 'Leader' && delegate?.role !== 'Assistant Leader') {
-    throw new Error('Only PAID delegates or Leaders can be grouped.')
-  }
-
+export const moveDelegateToGroup = async (delegateId: string, targetGroupId: string) => {
   const groupDocs = await getDocs(collection(db, 'groups'))
   const updates = groupDocs.docs.map(async (gDoc) => {
     let ids: string[] = gDoc.data().delegateIds || []
@@ -161,4 +169,19 @@ export const removeDelegateFromGroup = async (delegateId: string) => {
 
 export const renameGroupInFirestore = async (groupId: string, newName: string) => {
   await updateDoc(doc(db, 'groups', groupId), { name: newName })
+}
+
+export const toggleGroupLock = async (groupId: string, locked: boolean) => {
+  await updateDoc(doc(db, 'groups', groupId), { locked })
+}
+
+export const clearAllGroups = async (groups: Group[], delegates: Delegate[]) => {
+  const updates = groups.map(g => {
+    const leaderIds = g.delegateIds.filter(id => {
+      const d = delegates.find(del => del.id === id)
+      return d?.role === 'Leader' || d?.role === 'Assistant Leader'
+    })
+    return updateDoc(doc(db, 'groups', g.id), { delegateIds: leaderIds })
+  })
+  await Promise.all(updates)
 }

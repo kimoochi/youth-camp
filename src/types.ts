@@ -43,6 +43,7 @@ export interface Group {
   id: string
   name: string
   delegateIds: string[]
+  locked?: boolean
 }
 
 export interface RegistrationFormState {
