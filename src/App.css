@@ -1272,6 +1272,23 @@ tr:last-child td { border-bottom: none; }
   white-space: nowrap;
 }
 
+.admin-undo-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 2px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-undo-btn:hover {
+  background: var(--primary);
+  color: black;
+}
+
 .admin-exit-btn {
   padding: 0.5rem 0.75rem;
   border-radius: 6px;

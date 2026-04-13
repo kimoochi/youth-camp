@@ -46,6 +46,7 @@ function App() {
   const [delegates, setDelegates] = useState<Delegate[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [hydrated, setHydrated] = useState(false)
+  const [previousGroupsState, setPreviousGroupsState] = useState<Group[] | null>(null)
 
   const [adminChurchFilter, setAdminChurchFilter] = useState<ChurchId | 'ALL'>('ALL')
   const groupCount = 4
@@ -156,8 +157,22 @@ function App() {
   }
 
   const handleAutoGroup = async () => {
+    setPreviousGroupsState([...groups])
     const result = await performAutoGrouping(delegates, groups, groupCount)
     showToast(result.message, result.success ? 'success' : 'info')
+  }
+
+  const handleUndoAutoGroup = async () => {
+    if (!previousGroupsState) return
+    const { updateDoc, doc } = await import('firebase/firestore')
+    try {
+      const updates = previousGroupsState.map(g => updateDoc(doc(db, 'groups', g.id), { delegateIds: g.delegateIds }))
+      await Promise.all(updates)
+      setPreviousGroupsState(null)
+      showToast('Auto-group undone', 'info')
+    } catch {
+      showToast('Failed to undo', 'error')
+    }
   }
 
   const handlePrintIDs = (gid?: string) => {
@@ -275,6 +290,8 @@ function App() {
                 groupCount={groupCount}
                 onSetAdminChurchFilter={setAdminChurchFilter}
                 onAutoGroup={handleAutoGroup}
+                onUndoAutoGroup={handleUndoAutoGroup}
+                hasUndoAutoGroup={!!previousGroupsState}
                 onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups, delegates); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
                 onDropToLate={async () => { if(draggedDelegateId) { await removeDelegateFromGroup(draggedDelegateId); setDraggedDelegateId(null); showToast('Removed from group', 'info') }}}
                 onDropToGroup={async (gid) => { 

@@ -13,6 +13,8 @@ interface AdminPageProps {
   groupCount: number
   onSetAdminChurchFilter: (val: ChurchId | 'ALL') => void
   onAutoGroup: () => void
+  onUndoAutoGroup: () => void
+  hasUndoAutoGroup: boolean
   onTogglePayment: (id: string, currentStatus: 'PAID'|'UNPAID') => void
   onDropToLate: () => void
   onDropToGroup: (groupId: string) => void
@@ -38,6 +40,8 @@ function AdminPage({
   delegates,
   onSetAdminChurchFilter,
   onAutoGroup,
+  onUndoAutoGroup,
+  hasUndoAutoGroup,
   onTogglePayment,
   onDropToGroup,
   onDragStart,
@@ -129,6 +133,7 @@ function AdminPage({
             {CHURCHES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <button className="admin-autogroup-btn" onClick={onAutoGroup}>Auto Group</button>
+          {hasUndoAutoGroup && <button className="admin-undo-btn" onClick={onUndoAutoGroup}>Undo</button>}
           <button className="admin-exit-btn" onClick={onGoToRegistration}>Exit</button>
         </div>
       </header>
