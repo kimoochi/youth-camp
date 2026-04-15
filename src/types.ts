@@ -2,6 +2,8 @@ export const CHURCHES = [
   { id: 'MIBC', name: 'Mactan Independent Baptist Church' },
   { id: 'QIBBC', name: 'Quiot Independent Bible Baptist Church' },
   { id: 'BBC-C', name: 'Bible Baptist Church Consolacion' },
+  { id: 'BBC-A', name: 'Bible Baptist Church Asturias' },
+  { id: 'BBC-D', name: 'Bible Baptist Church Dipolog' },
   { id: 'GCBC', name: 'Gospel of Christ Baptist Church' },
   { id: 'LBBC', name: 'Liberty Bible Baptist Church - San Francisco Camotes' },
   { id: 'PSBC', name: 'Precious Seed Bible Baptist Church' },
