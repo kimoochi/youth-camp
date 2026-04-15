@@ -52,7 +52,6 @@ function AdminPage({
   onDragStart,
   onPrintIDs,
   onRenameGroup,
-  onSetGroupGender,
   onCreateLeadership,
   onAssignExistingLeadership,
   onRemoveLeadership,

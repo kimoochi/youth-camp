@@ -46,6 +46,7 @@ export interface Group {
   name: string
   delegateIds: string[]
   locked?: boolean
+  gender?: 'Male' | 'Female'
 }
 
 export interface RegistrationFormState {

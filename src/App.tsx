@@ -14,7 +14,6 @@ import {
   moveDelegateToGroup, 
   removeDelegateFromGroup, 
   renameGroupInFirestore,
-  setGroupGender,
   changeDelegateRole,
   createAndAssignLeader,
   deleteDelegate,
@@ -368,7 +367,6 @@ function App() {
                 }}
                 onUpdateDelegate={updateDelegate}
                 onRenameGroup={renameGroupInFirestore}
-                onSetGroupGender={setGroupGender}
                 onGoToRegistration={() => {
                   setMode('registration')
                   navigate('/')
