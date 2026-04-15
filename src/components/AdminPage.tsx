@@ -52,6 +52,7 @@ function AdminPage({
   onDragStart,
   onPrintIDs,
   onRenameGroup,
+  onSetGroupGender,
   onCreateLeadership,
   onAssignExistingLeadership,
   onRemoveLeadership,
@@ -355,8 +356,59 @@ function AdminPage({
                   </div>
 
                   <div className="members-section">
-                    <span className="section-label">MEMBERS</span>
-                    {standard.map(m => (
+                    <span className="section-label">MALE</span>
+                    {standard.filter(m => m.gender === 'Male').map(m => (
+                      <div key={m.id} className="member-card compact" draggable onDragStart={() => onDragStart(m.id)}>
+                        <div className="member-info">
+                          <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
+                          <span className={`status-tag ${m.paymentStatus.toLowerCase()}`}>{m.paymentStatus}</span>
+                        </div>
+                        <div className="member-quick-edit">
+                          <span className="quick-label">Size:</span>
+                          <select 
+                            value={m.tshirtSize}
+                            onChange={async (e) => {
+                              try {
+                                await onUpdateDelegate(m.id, { tshirtSize: e.target.value as TShirtSize })
+                                showToast('Size updated', 'success')
+                              } catch {
+                                showToast('Update failed', 'error')
+                              }
+                            }}
+                            className="tshirt-select"
+                          >
+                            <option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                            <option value="XS">XS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                          </select>
+                        </div>
+                        <div className="member-actions">
+                          <select 
+                            className="move-select"
+                            onChange={async (e) => {
+                              if (e.target.value) {
+                                try {
+                                  await moveDelegateToGroup(m.id, e.target.value)
+                                  showToast('Moved to group', 'success')
+                                } catch {
+                                  showToast('Failed to move', 'error')
+                                }
+                                e.target.value = ''
+                              }
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Move to...</option>
+                            {groups.filter(gr => gr.id !== g.id).map(gr => (
+                              <option key={gr.id} value={gr.id}>{gr.name}</option>
+                            ))}
+                          </select>
+                          <button className="member-btn" onClick={() => setSelectedDelegate(m)}>Edit</button>
+                          <button className="member-btn danger" onClick={() => onDeleteDelegate(m.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                    <span className="section-label">FEMALE</span>
+                    {standard.filter(m => m.gender === 'Female').map(m => (
                       <div key={m.id} className="member-card compact" draggable onDragStart={() => onDragStart(m.id)}>
                         <div className="member-info">
                           <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>

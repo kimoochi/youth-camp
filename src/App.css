@@ -1588,6 +1588,21 @@ tr:last-child td { border-bottom: none; }
   gap: 0.5rem;
 }
 
+.group-gender {
+  font-size: 1.1rem;
+  color: #666;
+  width: 24px;
+  text-align: center;
+}
+
+.group-gender-select select {
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px;
+}
+
 .group-name-input {
   background: transparent;
   border: none;
@@ -1851,12 +1866,25 @@ tr:last-child td { border-bottom: none; }
 }
 
 .section-label {
-  font-size: 0.6rem;
-  font-weight: 800;
-  color: #999;
-  letter-spacing: 0.1em;
-  display: block;
-  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.15em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0.5rem 0.4rem 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.section-label:first-of-type {
+  background: #3b82f6;
+}
+
+.section-label:nth-of-type(2) {
+  background: #ec4899;
 }
 
 .member-card.compact {

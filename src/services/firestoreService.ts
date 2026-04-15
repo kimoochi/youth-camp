@@ -82,8 +82,9 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
   // Create groups if they don't exist
   if (workingGroups.length === 0) {
     for (let i = 0; i < groupCount; i++) {
-      const ref = await addDoc(collection(db, 'groups'), { name: `Group ${i + 1}`, delegateIds: [] })
-      workingGroups.push({ id: ref.id, name: `Group ${i + 1}`, delegateIds: [] })
+      const gender = i % 2 === 0 ? 'Male' : 'Female'
+      const ref = await addDoc(collection(db, 'groups'), { name: `Group ${i + 1}`, delegateIds: [], gender })
+      workingGroups.push({ id: ref.id, name: `Group ${i + 1}`, delegateIds: [], gender })
     }
   }
 
@@ -169,6 +170,10 @@ export const removeDelegateFromGroup = async (delegateId: string) => {
 
 export const renameGroupInFirestore = async (groupId: string, newName: string) => {
   await updateDoc(doc(db, 'groups', groupId), { name: newName })
+}
+
+export const setGroupGender = async (groupId: string, gender: 'Male' | 'Female' | null) => {
+  await updateDoc(doc(db, 'groups', groupId), { gender })
 }
 
 export const toggleGroupLock = async (groupId: string, locked: boolean) => {
