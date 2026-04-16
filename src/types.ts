@@ -7,6 +7,8 @@ export const CHURCHES = [
   { id: 'GCBC', name: 'Gospel of Christ Baptist Church' },
   { id: 'LBBC', name: 'Liberty Bible Baptist Church - San Francisco Camotes' },
   { id: 'PSBC', name: 'Precious Seed Bible Baptist Church' },
+  { id: 'BBBC', name: 'Bonifacio Bible Baptist Church' },
+  { id: 'CBC-OZ', name: 'Calvary Baptist Church Ozamis' },
 ] as const
 
 export type ChurchId = typeof CHURCHES[number]['id']
