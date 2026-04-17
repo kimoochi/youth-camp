@@ -52,15 +52,15 @@ export const toggleDelegatePayment = async (delegateId: string, currentStatus: P
   }
 }
 
-// --- AUTO-GROUPING LOGIC (Church & Name Diversity Distribution) ---
+// --- AUTO-GROUPING LOGIC (Age & Gender Fair Distribution + Name Diversity) ---
 export const performAutoGrouping = async (delegates: Delegate[], groups: Group[], groupCount: number) => {
   // 1. Get Pool of UNASSIGNED delegates (excluding Leaders & Assistant Leaders)
   // Include BOTH paid and unpaid delegates
   const allUnassigned = delegates.filter(d => d.role !== 'Leader' && d.role !== 'Assistant Leader')
-  
+
   const allAssignedIds = new Set<string>()
   groups.forEach(g => g.delegateIds.forEach(id => allAssignedIds.add(id)))
-  
+
   const pool = allUnassigned.filter(d => !allAssignedIds.has(d.id))
 
   if (pool.length === 0) return { success: false, message: 'No unassigned delegates to group.' }
@@ -69,11 +69,11 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
   const lockedGroups = groups.filter(g => g.locked)
   const unlockedGroups = groups.filter(g => !g.locked)
   const workingGroups = unlockedGroups.map(g => ({ ...g, delegateIds: [...g.delegateIds] }))
-  
+
   // Locked group's IDs should be excluded from unassigned pool
   const lockedIds = new Set<string>()
   lockedGroups.forEach(g => g.delegateIds.forEach(id => lockedIds.add(id)))
-  
+
   // Also exclude locked groups' delegates from pool
   const effectivePool = pool.filter(d => !lockedIds.has(d.id))
 
@@ -98,35 +98,105 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
     return lastNames
   }
 
-  // 3. Sort pool by age (oldest first)
-  const sortedPool = [...effectivePool].sort((a, b) => b.age - a.age)
-  
-  // Round-robin index for fallback
-  let roundRobinIndex = 0
-  
-  sortedPool.forEach((delegate) => {
-    const delegateLastName = delegate.lastName.toLowerCase()
-    
-    // Try to find a group that doesn't have the same last name
-    let targetIndex = -1
-    let smallestSize = Infinity
-    
-    workingGroups.forEach((g, idx) => {
-      const lastNames = getGroupLastNames(g.delegateIds)
-      if (!lastNames.has(delegateLastName) && g.delegateIds.length < smallestSize) {
-        smallestSize = g.delegateIds.length
-        targetIndex = idx
+  // Helper to get gender counts in a group
+  const getGroupGenderCounts = (delegateIds: string[]): { male: number; female: number } => {
+    let male = 0
+    let female = 0
+    delegateIds.forEach(id => {
+      const d = delegates.find(x => x.id === id)
+      if (d) {
+        if (d.gender === 'Male') male++
+        else female++
       }
     })
-    
-    // If all groups have same last name, use round-robin
-    if (targetIndex === -1) {
-      targetIndex = roundRobinIndex
-      roundRobinIndex = (roundRobinIndex + 1) % workingGroups.length
-    }
-    
-    workingGroups[targetIndex].delegateIds.push(delegate.id)
+    return { male, female }
+  }
+
+  // Count total males and females in the pool for fair distribution
+  const poolGenderCounts = { male: 0, female: 0 }
+  effectivePool.forEach(d => {
+    if (d.gender === 'Male') poolGenderCounts.male++
+    else poolGenderCounts.female++
   })
+
+  // Calculate target male count per group
+  const targetMalesPerGroup = Math.ceil(poolGenderCounts.male / workingGroups.length)
+
+  // 3. Sort pool by age (oldest first)
+  const sortedPool = [...effectivePool].sort((a, b) => b.age - a.age)
+
+  // Separate by gender while maintaining age order within each gender
+  const malePool = sortedPool.filter(d => d.gender === 'Male')
+  const femalePool = sortedPool.filter(d => d.gender === 'Female')
+
+  // Distribute each gender fairly across groups based on target counts
+  const distributeByGender = (genderPool: Delegate[], targetPerGroup: number) => {
+    let roundRobinIndex = 0
+
+    genderPool.forEach((delegate) => {
+      const delegateLastName = delegate.lastName.toLowerCase()
+
+      // First, try to find a group that:
+      // 1. Has room for this gender (under target)
+      // 2. Doesn't have same last name
+      // 3. Has smallest size among eligible groups
+      let targetIndex = -1
+      let smallestSize = Infinity
+
+      workingGroups.forEach((g, idx) => {
+        const genderCounts = getGroupGenderCounts(g.delegateIds)
+        const isTargetGender = delegate.gender === 'Male'
+          ? genderCounts.male < targetPerGroup
+          : genderCounts.female < targetPerGroup
+        const lastNames = getGroupLastNames(g.delegateIds)
+
+        if (isTargetGender && !lastNames.has(delegateLastName)) {
+          if (g.delegateIds.length < smallestSize) {
+            smallestSize = g.delegateIds.length
+            targetIndex = idx
+          }
+        }
+      })
+
+      // If no group found for last name diversity, find any group under target (with round-robin)
+      if (targetIndex === -1) {
+        for (let i = 0; i < workingGroups.length; i++) {
+          const g = workingGroups[roundRobinIndex]
+          const genderCounts = getGroupGenderCounts(g.delegateIds)
+          const isTargetGender = delegate.gender === 'Male'
+            ? genderCounts.male < targetPerGroup
+            : genderCounts.female < targetPerGroup
+
+          if (isTargetGender) {
+            targetIndex = roundRobinIndex
+            break
+          }
+          roundRobinIndex = (roundRobinIndex + 1) % workingGroups.length
+        }
+      }
+
+      // Last resort: any group with smallest size
+      if (targetIndex === -1) {
+        smallestSize = Infinity
+        for (let i = 0; i < workingGroups.length; i++) {
+          const g = workingGroups[i]
+          if (g.delegateIds.length < smallestSize) {
+            smallestSize = g.delegateIds.length
+            targetIndex = i
+          }
+        }
+      }
+
+      if (targetIndex !== -1) {
+        workingGroups[targetIndex].delegateIds.push(delegate.id)
+      }
+      roundRobinIndex = (roundRobinIndex + 1) % workingGroups.length
+    })
+  }
+
+  // Distribute males first, then females
+  distributeByGender(malePool, targetMalesPerGroup)
+  distributeByGender(femalePool, targetMalesPerGroup)
 
   // 4. Save to Firestore (only update unlocked groups)
   try {
