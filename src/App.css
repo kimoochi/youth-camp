@@ -139,6 +139,37 @@ body {
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.admin-title-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-topbar-stats {
+  font-size: 0.8rem;
+  color: var(--primary);
+  opacity: 0.8;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.admin-finalize-btn {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-right: 12px;
+  transition: all 0.2s;
+}
+
+.admin-finalize-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
@@ -1571,11 +1602,15 @@ tr:last-child td { border-bottom: none; }
 }
 
 .group-card {
-  background: white;
+  padding: 0.8rem;
   border-radius: 12px;
-  border: 1px solid #e5e5e5;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  transition: all 0.2s;
 }
 
 .group-card-header {
@@ -1888,8 +1923,8 @@ tr:last-child td { border-bottom: none; }
 }
 
 .member-card.compact {
-  padding: 0.5rem 0.6rem;
-  cursor: grab;
+  padding: 4px 8px;
+  margin-bottom: 4px;
 }
 
 .drop-zone-hint {
@@ -2307,20 +2342,16 @@ tr:last-child td { border-bottom: none; }
   font-family: inherit;
 }
 
-.locked-section-header {
-  background: #f5f0e8;
-  border: 1.5px solid #d4a853;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.locked-section-header:hover {
-  background: #ede8dc;
-}
-
-.active-section-header {
-  background: #f0f7f0;
-  border: 1.5px solid #86b887;
+.groups-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.2rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .groups-section-title-row {
@@ -2341,7 +2372,7 @@ tr:last-child td { border-bottom: none; }
 }
 
 .locked-icon {
-  background: #d4a853;
+  background: var(--primary);
   color: white;
 }
 
@@ -2371,7 +2402,7 @@ tr:last-child td { border-bottom: none; }
 }
 
 .locked-count {
-  background: #d4a853;
+  background: var(--primary);
 }
 
 .active-count {
@@ -2390,23 +2421,22 @@ tr:last-child td { border-bottom: none; }
   flex-shrink: 0;
 }
 
-.locked-grid .group-card {
-  background: #fafaf7;
-  border: 1.5px solid #e0c97a;
-  position: relative;
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  padding-bottom: 2rem;
 }
 
-.locked-grid .group-card-header {
-  background: #f9f4e8;
-}
-
-.locked-grid .group-name-input {
-  color: #7a6533;
-}
-
-.active-grid .group-card.active {
+.group-card {
   background: white;
   border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
 }
 
 .group-header-left {
@@ -2420,8 +2450,61 @@ tr:last-child td { border-bottom: none; }
 .group-header-right {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
+  gap: 15px;
+}
+
+.member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-badge {
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #bbf7d0;
+  animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bounceIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.member-lock-icon {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.lock-toggle-btn {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lock-toggle-btn.locked {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.member-card.locked {
+  background: #f8fafc;
+  border-left: 3px solid #3b82f6;
+}
+
+.member-card.is-new {
+  box-shadow: inset 0 0 0 1px #22c55e;
 }
 
 .lock-badge {

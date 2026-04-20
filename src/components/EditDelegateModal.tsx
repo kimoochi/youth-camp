@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Delegate, RegistrationFormState } from '../types';
 
 interface EditDelegateModalProps {
@@ -8,23 +8,17 @@ interface EditDelegateModalProps {
 }
 
 const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps) => {
-  const [formData, setFormData] = useState<Partial<RegistrationFormState>>({});
+  const initialFormData: Partial<RegistrationFormState> = delegate ? {
+    lastName: delegate.lastName,
+    firstName: delegate.firstName,
+    age: delegate.age.toString(),
+    gender: delegate.gender,
+    birthday: delegate.birthday,
+    category: delegate.category,
+    tshirtSize: delegate.tshirtSize,
+  } : {};
 
-  useEffect(() => {
-    if (delegate) {
-      setFormData({
-        lastName: delegate.lastName,
-        firstName: delegate.firstName,
-        age: delegate.age.toString(),
-        gender: delegate.gender,
-        birthday: delegate.birthday,
-        category: delegate.category,
-        tshirtSize: delegate.tshirtSize,
-      });
-    } else {
-      setFormData({});
-    }
-  }, [delegate]);
+  const [formData, setFormData] = useState<Partial<RegistrationFormState>>(initialFormData);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

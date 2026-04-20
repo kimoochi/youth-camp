@@ -41,6 +41,8 @@ export interface Delegate {
   paymentMethod: PaymentMethod
   referenceNumber?: string
   role?: DelegateRole
+  isNew?: boolean
+  locked?: boolean
 }
 
 export interface Group {

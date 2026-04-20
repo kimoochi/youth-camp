@@ -12,14 +12,13 @@ import {
   toggleDelegatePayment, 
   performAutoGrouping, 
   moveDelegateToGroup, 
-  removeDelegateFromGroup, 
   renameGroupInFirestore,
   changeDelegateRole,
   createAndAssignLeader,
   deleteDelegate,
   updateDelegate,
   toggleGroupLock,
-  clearAllGroups
+  clearUnlockedGroups
 } from './services/firestoreService'
 
 export interface RegistrationFormState {
@@ -178,21 +177,22 @@ function App() {
   }
 
   const handleClearAllGroups = async () => {
-    if (!window.confirm('Clear all member assignments? Leaders/Assistants will stay in their groups.')) return
+    if (!window.confirm('Clear all unlocked members from active groups? (Locked members/leaders stay)')) return
     try {
-      await clearAllGroups(groups, delegates)
-      showToast('Members cleared from groups', 'success')
+      await clearUnlockedGroups(groups, delegates)
+      showToast('Unlocked members cleared', 'success')
     } catch {
       showToast('Failed to clear groups', 'error')
     }
   }
 
-  const handleToggleGroupLock = async (groupId: string, locked: boolean) => {
+
+  const handleToggleGroupLock = async (groupId: string, locked: boolean, delegateIds: string[]) => {
     try {
-      await toggleGroupLock(groupId, locked)
-      showToast(locked ? 'Group locked' : 'Group unlocked', 'success')
+      await toggleGroupLock(groupId, locked, delegateIds)
+      showToast(locked ? 'Group locked & members finalized' : 'Group unlocked', 'success')
     } catch {
-      showToast('Failed to update lock status', 'error')
+      showToast('Failed to update group status', 'error')
     }
   }
 
@@ -316,15 +316,14 @@ function App() {
                 onClearAllGroups={handleClearAllGroups}
                 onToggleGroupLock={handleToggleGroupLock}
                 onTogglePayment={(id, status) => { toggleDelegatePayment(id, status, groups, delegates); showToast(`Status updated to ${status === 'PAID' ? 'UNPAID' : 'PAID'}`, 'info') }}
-                onDropToLate={async () => { if(draggedDelegateId) { await removeDelegateFromGroup(draggedDelegateId); setDraggedDelegateId(null); showToast('Removed from group', 'info') }}}
                 onDropToGroup={async (gid) => { 
                   if(draggedDelegateId) { 
                     try {
                       await moveDelegateToGroup(draggedDelegateId, gid); 
                       setDraggedDelegateId(null); 
                       showToast('Moved to group', 'success') 
-                    } catch (err: any) {
-                      showToast(err.message, 'error')
+                    } catch (err: unknown) {
+                      showToast(err instanceof Error ? err.message : 'An error occurred', 'error')
                     }
                   }
                 }}
@@ -334,8 +333,8 @@ function App() {
                   try {
                     await createAndAssignLeader(data, gid);
                     showToast('Leadership registered', 'success');
-                  } catch (err: any) {
-                    showToast(err.message, 'error');
+                  } catch (err: unknown) {
+                    showToast(err instanceof Error ? err.message : 'An error occurred', 'error');
                   }
                 }}
                 onAssignExistingLeadership={async (delegateId, gid, role) => {
@@ -343,16 +342,16 @@ function App() {
                     await moveDelegateToGroup(delegateId, gid);
                     await changeDelegateRole(delegateId, role);
                     showToast('Assigned successfully', 'success');
-                  } catch (err: any) {
-                    showToast(err.message, 'error');
+                  } catch (err: unknown) {
+                    showToast(err instanceof Error ? err.message : 'An error occurred', 'error');
                   }
                 }}
                 onRemoveLeadership={async (id) => {
                   try {
                     await changeDelegateRole(id, 'Delegate');
                     showToast('Leadership role removed', 'info');
-                  } catch (err: any) {
-                    showToast(err.message, 'error');
+                  } catch (err: unknown) {
+                    showToast(err instanceof Error ? err.message : 'An error occurred', 'error');
                   }
                 }}
                 onDeleteDelegate={async (id) => {
@@ -360,8 +359,8 @@ function App() {
                     try {
                       await deleteDelegate(id, groups);
                       showToast('Delegate deleted', 'success');
-                    } catch (err: any) {
-                      showToast(err.message, 'error');
+                    } catch (err: unknown) {
+                      showToast(err instanceof Error ? err.message : 'An error occurred', 'error');
                     }
                   }
                 }}

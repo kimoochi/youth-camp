@@ -5,7 +5,7 @@ import BirthdayPicker from './BirthdayPicker';
 interface DelegateFormProps {
   form: RegistrationFormState;
   idx: number;
-  onUpdateBulkForm: (index: number, field: keyof RegistrationFormState, value: any) => void;
+  onUpdateBulkForm: (index: number, field: keyof RegistrationFormState, value: string | number | Gender | DelegateCategory | TShirtSize) => void;
   calculateAge: (birthday: string) => string;
 }
 

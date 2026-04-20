@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
 import { generateGroupListPDF } from '../utils/pdfGenerator'
@@ -17,9 +17,8 @@ interface AdminPageProps {
   onUndoAutoGroup: () => void
   hasUndoAutoGroup: boolean
   onClearAllGroups: () => void
-  onToggleGroupLock: (groupId: string, locked: boolean) => void
+  onToggleGroupLock: (groupId: string, locked: boolean, delegateIds: string[]) => void
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void
-  onDropToLate: () => void
   onDropToGroup: (groupId: string) => void
   onDragStart: (id: string) => void
   onPrintIDs: (groupId?: string) => void
@@ -67,7 +66,7 @@ interface GroupCardProps {
   delegates: Delegate[]
   groups: Group[]
   locked: boolean
-  onToggleGroupLock: (groupId: string, locked: boolean) => void
+  onToggleGroupLock: (groupId: string, locked: boolean, delegateIds: string[]) => void
   onRenameGroup: (id: string, name: string) => void
   onDropToGroup: (groupId: string) => void
   onDragStart: (id: string) => void
@@ -122,7 +121,7 @@ function GroupCard({
           <span className="member-count" aria-label={`${members.length} members`}>{members.length}</span>
           <button
             className={`lock-btn ${locked ? 'locked' : ''}`}
-            onClick={() => onToggleGroupLock(g.id, !locked)}
+            onClick={() => onToggleGroupLock(g.id, !locked, g.delegateIds)}
             aria-label={locked ? 'Unlock this group' : 'Lock this group'}
             aria-pressed={locked}
             title={locked ? 'Unlock group' : 'Lock group'}
@@ -208,11 +207,14 @@ function GroupCard({
       </div>
 
       <div className="members-section">
-        <span className="section-label male-label">MALE</span>
-        {standard.filter(m => m.gender === 'Male').map(m => (
-          <div key={m.id} className="member-card compact" draggable={!locked} onDragStart={() => !locked && onDragStart(m.id)}>
+        <span className="section-label male-label">MALE ({standard.filter(m => m.gender === 'Male').length})</span>
+        {standard.filter(m => m.gender === 'Male').sort((a, b) => b.age - a.age).map(m => (
+          <div key={m.id} className={`member-card compact ${m.locked ? 'locked' : ''} ${m.isNew ? 'is-new' : ''}`} draggable={!locked && !m.locked} onDragStart={() => !locked && !m.locked && onDragStart(m.id)}>
             <div className="member-info">
-              <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
+              <div className="member-name-row">
+                <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
+                {locked && m.isNew && <span className="new-badge">new</span>}
+              </div>
               <span className={`status-tag ${m.paymentStatus.toLowerCase()}`}>{m.paymentStatus}</span>
             </div>
             {!locked && (
@@ -246,11 +248,14 @@ function GroupCard({
             )}
           </div>
         ))}
-        <span className="section-label female-label">FEMALE</span>
-        {standard.filter(m => m.gender === 'Female').map(m => (
-          <div key={m.id} className="member-card compact" draggable={!locked} onDragStart={() => !locked && onDragStart(m.id)}>
+        <span className="section-label female-label">FEMALE ({standard.filter(m => m.gender === 'Female').length})</span>
+        {standard.filter(m => m.gender === 'Female').sort((a, b) => b.age - a.age).map(m => (
+          <div key={m.id} className={`member-card compact ${m.locked ? 'locked' : ''} ${m.isNew ? 'is-new' : ''}`} draggable={!locked && !m.locked} onDragStart={() => !locked && !m.locked && onDragStart(m.id)}>
             <div className="member-info">
-              <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
+              <div className="member-name-row">
+                <span className="member-name">{m.lastName}, {m.firstName} <span className="member-age">({m.age})</span></span>
+                {locked && m.isNew && <span className="new-badge">new</span>}
+              </div>
               <span className={`status-tag ${m.paymentStatus.toLowerCase()}`}>{m.paymentStatus}</span>
             </div>
             {!locked && (
@@ -324,7 +329,15 @@ function AdminPage({
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid')
   const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [lockedPanelCollapsed, setLockedPanelCollapsed] = useState(false)
+  const allGroups = useMemo(() => {
+    return [...groups].sort((a, b) => {
+      if (a.name === 'Following Peter') return 1
+      if (b.name === 'Following Peter') return -1
+      return a.name.localeCompare(b.name)
+    })
+  }, [groups])
+
+  const lockedCount = allGroups.filter((g: Group) => g.locked).length
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male' as 'Male' | 'Female',
     birthday: '', category: 'Young Professional', tshirtSize: 'M' as TShirtSize
@@ -364,14 +377,6 @@ function AdminPage({
   const regularUnassigned = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05'))
   const visibleLeaders = sortByLastName(filterByChurch(delegates.filter(d => d.role === 'Leader' || d.role === 'Assistant Leader')))
 
-  const sortedGroups = [...groups].sort((a, b) => {
-    const num = (name: string) => { const m = name.match(/\d+/); return m ? Number(m[0]) : Number.POSITIVE_INFINITY }
-    return num(a.name) - num(b.name)
-  })
-
-  const lockedGroups = sortedGroups.filter(g => g.locked)
-  const activeGroups = sortedGroups.filter(g => !g.locked)
-
   const getSlideOffset = () => {
     if (activeSidebarTab === 'unpaid') return '0%'
     if (activeSidebarTab === 'late') return '-100%'
@@ -383,7 +388,7 @@ function AdminPage({
   const sharedGroupCardProps = (g: Group) => ({
     g,
     delegates,
-    groups: sortedGroups,
+    groups: allGroups,
     locked: !!g.locked,
     onToggleGroupLock,
     onRenameGroup,
@@ -399,12 +404,22 @@ function AdminPage({
     showToast
   })
 
+  const totalUnassignedCount = delegates.filter(d => 
+    !groups.some(g => g.delegateIds.includes(d.id)) && 
+    d.role !== 'Leader' && 
+    d.role !== 'Assistant Leader'
+  ).length
+
   return (
     <div className="admin-viewport">
       <header className="admin-topbar">
         <div className="admin-topbar-left">
-          <h1 className="admin-topbar-title">Youth Camp 2026</h1>
-          <span className="admin-topbar-sub">Admin Dashboard</span>
+          <div className="admin-title-stack">
+            <h1 className="admin-topbar-title">Group management</h1>
+            <span className="admin-topbar-stats">
+              {lockedCount} locked groups · {totalUnassignedCount} unassigned delegates
+            </span>
+          </div>
         </div>
         <div className="admin-topbar-right">
           <select
@@ -425,9 +440,9 @@ function AdminPage({
           <button
             className="admin-clear-btn"
             onClick={onClearAllGroups}
-            aria-label="Clear all active group assignments"
+            aria-label="Clear all ungrouped assignments"
           >
-            Clear Active
+            Clear Unlocked
           </button>
           <button className="admin-exit-btn" onClick={onGoToRegistration} aria-label="Exit to registration">Exit</button>
         </div>
@@ -537,55 +552,21 @@ function AdminPage({
         </aside>
 
         <main className="admin-main" onDragOver={e => e.preventDefault()} onDrop={() => {}}>
-
-          {lockedGroups.length > 0 && (
-            <section className="groups-section locked-section" aria-label="Locked groups">
-              <button
-                className="groups-section-header locked-section-header"
-                onClick={() => setLockedPanelCollapsed(!lockedPanelCollapsed)}
-                aria-expanded={!lockedPanelCollapsed}
-                aria-controls="locked-groups-panel"
-              >
-                <div className="groups-section-title-row">
-                  <span className="groups-section-icon locked-icon" aria-hidden="true">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-                    </svg>
-                  </span>
-                  <span className="groups-section-title">Locked Groups</span>
-                  <span className="groups-section-count locked-count">{lockedGroups.length}</span>
-                  <span className="groups-section-hint">Frozen — not affected by Auto Group or Clear Active</span>
-                </div>
-                <span className="section-collapse-chevron" aria-hidden="true">{lockedPanelCollapsed ? '▼' : '▲'}</span>
-              </button>
-              {!lockedPanelCollapsed && (
-                <div id="locked-groups-panel" className="groups-grid locked-grid">
-                  {lockedGroups.map(g => <GroupCard key={g.id} {...sharedGroupCardProps(g)} />)}
-                </div>
-              )}
-            </section>
-          )}
-
-          <section className="groups-section active-section" aria-label="Active groups">
-            <div className="groups-section-header active-section-header">
+          <section className="groups-section" aria-label="Camp groups">
+            <header className="groups-section-header">
               <div className="groups-section-title-row">
                 <span className="groups-section-icon active-icon" aria-hidden="true">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z" />
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5s-3 1.34-3 3 1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
                   </svg>
                 </span>
-                <span className="groups-section-title">Active Groups</span>
-                <span className="groups-section-count active-count">{activeGroups.length}</span>
-                <span className="groups-section-hint">Auto Group and Clear Active only apply here</span>
+                <span className="groups-section-title">All Groups</span>
+                <span className="groups-section-count active-count">{allGroups.length}</span>
+                <span className="groups-section-hint">{lockedCount} groups currently locked</span>
               </div>
-            </div>
-            <div className="groups-grid active-grid">
-              {activeGroups.map(g => <GroupCard key={g.id} {...sharedGroupCardProps(g)} />)}
-              {activeGroups.length === 0 && (
-                <div className="empty-groups-hint">
-                  No active groups yet. Press <strong>Auto Group</strong> to distribute remaining delegates.
-                </div>
-              )}
+            </header>
+            <div className="groups-grid">
+              {allGroups.map((g: Group) => <GroupCard key={g.id} {...sharedGroupCardProps(g)} />)}
             </div>
           </section>
         </main>
@@ -598,7 +579,7 @@ function AdminPage({
         title="Auto Group"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M16.24 7.76C15.07 6.59 13.54 6 12 6v6l-4.24 4.24c2.34 2.34 6.14 2.34 8.49 0 2.34-2.34 2.34-6.14-.01-8.48zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" />
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
         </svg>
         <span>Auto Group</span>
       </button>

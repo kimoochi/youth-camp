@@ -54,9 +54,11 @@ export const toggleDelegatePayment = async (delegateId: string, currentStatus: P
 
 // --- AUTO-GROUPING LOGIC (Age & Gender Fair Distribution + Name Diversity) ---
 export const performAutoGrouping = async (delegates: Delegate[], groups: Group[], groupCount: number) => {
-  // 1. Get Pool of UNASSIGNED delegates (excluding Leaders & Assistant Leaders)
-  // Include BOTH paid and unpaid delegates
-  const allUnassigned = delegates.filter(d => d.role !== 'Leader' && d.role !== 'Assistant Leader')
+  // 1. Get Pool of ALL UNASSIGNED delegates (excluding Leaders & Assistant Leaders)
+  const allUnassigned = delegates.filter(d => 
+    d.role !== 'Leader' && 
+    d.role !== 'Assistant Leader'
+  )
 
   const allAssignedIds = new Set<string>()
   groups.forEach(g => g.delegateIds.forEach(id => allAssignedIds.add(id)))
@@ -65,17 +67,10 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
 
   if (pool.length === 0) return { success: false, message: 'No unassigned delegates to group.' }
 
-  // 2. Prepare Groups - filter out locked groups from auto-grouping
-  const lockedGroups = groups.filter(g => g.locked)
-  const unlockedGroups = groups.filter(g => !g.locked)
-  const workingGroups = unlockedGroups.map(g => ({ ...g, delegateIds: [...g.delegateIds] }))
+  // 2. Prepare Groups - INCLUDE ALL groups in the distribution for balancing
+  const workingGroups = groups.map(g => ({ ...g, delegateIds: [...g.delegateIds] }))
 
-  // Locked group's IDs should be excluded from unassigned pool
-  const lockedIds = new Set<string>()
-  lockedGroups.forEach(g => g.delegateIds.forEach(id => lockedIds.add(id)))
-
-  // Also exclude locked groups' delegates from pool
-  const effectivePool = pool.filter(d => !lockedIds.has(d.id))
+  const effectivePool = [...pool]
 
   if (effectivePool.length === 0) return { success: false, message: 'All unassigned delegates are already grouped, or groups are locked.' }
 
@@ -210,12 +205,21 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
   distributeByGender(malePool, targetMalesPerGroup)
   distributeByGender(femalePool, targetMalesPerGroup)
 
-  // 4. Save to Firestore (only update unlocked groups)
+  // 4. Save to Firestore (Update groups and mark added delegates as 'new')
   try {
-    const updates = workingGroups.map(g => updateDoc(doc(db, 'groups', g.id), { delegateIds: g.delegateIds }))
-    await Promise.all(updates)
-    const lockedCount = lockedGroups.length
-    return { success: true, message: `Grouped ${effectivePool.length} delegates. ${lockedCount > 0 ? `${lockedCount} locked group(s) skipped.` : ''}` }
+    const groupUpdates = workingGroups.map(g => updateDoc(doc(db, 'groups', g.id), { delegateIds: g.delegateIds }))
+    
+    // Track which delegates were just added to mark them as 'new'
+    const addedDelegateIds = workingGroups.flatMap(g => {
+      const originalGroup = groups.find(og => og.id === g.id)
+      const originalIds = new Set(originalGroup?.delegateIds || [])
+      return g.delegateIds.filter(id => !originalIds.has(id))
+    })
+
+    const delegateUpdates = addedDelegateIds.map(id => updateDoc(doc(db, 'delegates', id), { isNew: true }))
+    
+    await Promise.all([...groupUpdates, ...delegateUpdates])
+    return { success: true, message: `Grouped ${effectivePool.length} new delegates across groups.` }
   } catch {
     return { success: false, message: 'Database error during grouping.' }
   }
@@ -258,19 +262,39 @@ export const setGroupGender = async (groupId: string, gender: 'Male' | 'Female' 
   await updateDoc(doc(db, 'groups', groupId), { gender })
 }
 
-export const toggleGroupLock = async (groupId: string, locked: boolean) => {
-  await updateDoc(doc(db, 'groups', groupId), { locked })
+export const toggleGroupLock = async (groupId: string, locked: boolean, delegateIds: string[] = []) => {
+  const updates: Promise<void>[] = [
+    updateDoc(doc(db, 'groups', groupId), { locked })
+  ]
+
+  // If locking the group, also clear 'isNew' status for all members
+  if (locked) {
+    delegateIds.forEach(id => {
+      updates.push(updateDoc(doc(db, 'delegates', id), { isNew: false }))
+    })
+  }
+
+  await Promise.all(updates)
 }
 
-export const clearAllGroups = async (groups: Group[], delegates: Delegate[]) => {
+export const clearUnlockedGroups = async (groups: Group[], delegates: Delegate[]) => {
   const updates = groups
     .filter(g => !g.locked)
     .map(g => {
-      const leaderIds = g.delegateIds.filter(id => {
+      const fixedIds = g.delegateIds.filter(id => {
         const d = delegates.find(del => del.id === id)
+        // Keep only Leaders and Assistants in unlocked groups
         return d?.role === 'Leader' || d?.role === 'Assistant Leader'
       })
-      return updateDoc(doc(db, 'groups', g.id), { delegateIds: leaderIds })
+      
+      // For those being cleared, remove their 'isNew' status
+      const removedIds = g.delegateIds.filter(id => !fixedIds.includes(id))
+      const delUpdates = removedIds.map(id => updateDoc(doc(db, 'delegates', id), { isNew: false }))
+      
+      return Promise.all([
+        updateDoc(doc(db, 'groups', g.id), { delegateIds: fixedIds }),
+        ...delUpdates
+      ])
     })
   await Promise.all(updates)
 }
