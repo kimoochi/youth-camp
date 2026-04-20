@@ -11,6 +11,7 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
   const initialFormData: Partial<RegistrationFormState> = delegate ? {
     lastName: delegate.lastName,
     firstName: delegate.firstName,
+    preferredName: delegate.preferredName || '',
     age: delegate.age.toString(),
     gender: delegate.gender,
     birthday: delegate.birthday,
@@ -47,6 +48,10 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
             <div className="field-group">
               <label htmlFor="firstName">First Name</label>
               <input type="text" id="firstName" name="firstName" value={formData.firstName || ''} onChange={handleChange} required />
+            </div>
+            <div className="field-group">
+              <label htmlFor="preferredName">Preferred Name (For ID)</label>
+              <input type="text" id="preferredName" name="preferredName" value={formData.preferredName || ''} onChange={handleChange} placeholder="Name to print on ID badge" />
             </div>
             <div className="field-group">
               <label htmlFor="age">Age</label>

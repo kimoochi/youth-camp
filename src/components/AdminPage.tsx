@@ -1,4 +1,5 @@
 import { useState, useMemo, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
 import { generateGroupListPDF } from '../utils/pdfGenerator'
@@ -21,7 +22,7 @@ interface AdminPageProps {
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void
   onDropToGroup: (groupId: string) => void
   onDragStart: (id: string) => void
-  onPrintIDs: (groupId?: string) => void
+  onPrintIDs: (groupId?: string, autoPrint?: boolean) => void
   onRenameGroup: (id: string, name: string) => void
   onCreateLeadership: (data: Omit<Delegate, 'id'>, groupId: string) => void
   onAssignExistingLeadership: (delegateId: string, groupId: string, role: 'Leader' | 'Assistant Leader') => void
@@ -70,7 +71,7 @@ interface GroupCardProps {
   onRenameGroup: (id: string, name: string) => void
   onDropToGroup: (groupId: string) => void
   onDragStart: (id: string) => void
-  onPrintIDs: (groupId?: string) => void
+  onPrintIDs: (groupId?: string, autoPrint?: boolean) => void
   onTogglePayment: (id: string, currentStatus: 'PAID' | 'UNPAID') => void
   onRemoveLeadership: (id: string) => void
   onDeleteDelegate: (id: string) => void
@@ -141,8 +142,9 @@ function GroupCard({
 
       {!locked && (
         <div className="group-card-actions">
-          <button className="group-btn" onClick={() => generateGroupListPDF(g, delegates)} aria-label="Download PDF list">PDF</button>
-          <button className="group-btn primary" onClick={() => onPrintIDs(g.id)} aria-label="Print ID cards">Print IDs</button>
+          <button className="group-btn" onClick={() => generateGroupListPDF(g, delegates)} title="Download Member List">List PDF</button>
+          <button className="group-btn" onClick={() => onPrintIDs(g.id, false)} title="Download ID Cards">IDs PDF</button>
+          <button className="group-btn primary" onClick={() => onPrintIDs(g.id, true)} title="Direct Print IDs">Print IDs</button>
         </div>
       )}
 
@@ -323,6 +325,7 @@ function AdminPage({
   showToast
 }: AdminPageProps) {
 
+  const navigate = useNavigate()
   const [creationModal, setCreationModal] = useState<{ groupId: string; role: 'Leader' | 'Assistant Leader' } | null>(null)
   const [modalTab, setModalTab] = useState<'create' | 'existing'>('create')
   const [existingDelegateId, setExistingDelegateId] = useState<string>('')
@@ -422,6 +425,13 @@ function AdminPage({
           </div>
         </div>
         <div className="admin-topbar-right">
+          <button 
+            className="admin-clear-btn" 
+            style={{ background: 'var(--primary)', color: 'black' }}
+            onClick={() => navigate('/admin/id-printer')}
+          >
+            Manual ID Tool
+          </button>
           <select
             value={adminChurchFilter}
             onChange={(e) => {
@@ -670,6 +680,7 @@ function AdminPage({
               const updates = {
                 firstName: (form.elements.namedItem('firstName') as HTMLInputElement).value,
                 lastName: (form.elements.namedItem('lastName') as HTMLInputElement).value,
+                preferredName: (form.elements.namedItem('preferredName') as HTMLInputElement).value,
                 age: Number((form.elements.namedItem('age') as HTMLInputElement).value),
                 tshirtSize: (form.elements.namedItem('tshirtSize') as HTMLSelectElement).value as TShirtSize,
                 category: (form.elements.namedItem('category') as HTMLSelectElement).value as Delegate['category'],
@@ -695,9 +706,15 @@ function AdminPage({
               </div>
               <div className="form-row">
                 <div className="form-group">
+                  <label>Preferred Name (For ID)</label>
+                  <input name="preferredName" defaultValue={selectedDelegate.preferredName || ''} placeholder="Name to print on ID badge" />
+                </div>
+                <div className="form-group">
                   <label>Age</label>
                   <input name="age" type="number" defaultValue={selectedDelegate.age} required />
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label>Gender</label>
                   <select name="gender" defaultValue={selectedDelegate.gender}>
@@ -705,8 +722,6 @@ function AdminPage({
                     <option value="Female">Female</option>
                   </select>
                 </div>
-              </div>
-              <div className="form-row">
                 <div className="form-group">
                   <label>T-Shirt Size</label>
                   <select name="tshirtSize" defaultValue={selectedDelegate.tshirtSize}>
@@ -716,6 +731,8 @@ function AdminPage({
                     <option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
                   </select>
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label>Category</label>
                   <select name="category" defaultValue={selectedDelegate.category}>

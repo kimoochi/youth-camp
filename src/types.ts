@@ -41,6 +41,7 @@ export interface Delegate {
   paymentMethod: PaymentMethod
   referenceNumber?: string
   role?: DelegateRole
+  preferredName?: string
   isNew?: boolean
   locked?: boolean
 }
@@ -61,4 +62,5 @@ export interface RegistrationFormState {
   birthday: string
   category: DelegateCategory
   tshirtSize: TShirtSize
+  preferredName: string
 }

@@ -192,6 +192,14 @@ function RegistrationPage({
                           placeholder="Last Name"
                         />
                       </div>
+                      <div className="reg-field">
+                        <label>Preffered Name (For ID)</label>
+                        <input
+                          value={form.preferredName}
+                          onChange={e => onUpdateBulkForm(index, 'preferredName', sanitizeNameInput(e.target.value))}
+                          placeholder="Short name/Nickname"
+                        />
+                      </div>
                       <div className="reg-field reg-field-sm">
                         <label>Birthday</label>
                         <input

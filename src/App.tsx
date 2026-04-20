@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import RegistrationPage from './components/RegistrationPage'
 import AdminPage from './components/AdminPage'
+import IDPrinterTool from './components/IDPrinterTool'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ChurchId, Delegate, Group, DelegateCategory, TShirtSize, Mode, PaymentMethod, Gender } from './types'
@@ -29,6 +30,7 @@ export interface RegistrationFormState {
   birthday: string
   category: DelegateCategory
   tshirtSize: TShirtSize
+  preferredName: string
 }
 
 type ToastType = { message: string, type: 'success' | 'error' | 'info', id: number }
@@ -97,7 +99,7 @@ function App() {
 
   const handleConfirmBulkCount = (count: number) => {
     setBulkForms(Array(count).fill(null).map(() => ({
-      lastName: '', firstName: '', age: '', gender: 'Male', birthday: '', category: 'High School (JHS)', tshirtSize: 'M',
+      lastName: '', firstName: '', age: '', gender: 'Male', birthday: '', category: 'High School (JHS)', tshirtSize: 'M', preferredName: '',
     })))
     setBulkPaymentMethod('ONSITE')
     setRegView('BULK_FORM')
@@ -126,6 +128,7 @@ function App() {
             createdAt: new Date().toISOString(),
             paymentStatus: 'UNPAID',
             paymentMethod: bulkPaymentMethod,
+            preferredName: form.preferredName,
           })
         )
       )
@@ -196,10 +199,10 @@ function App() {
     }
   }
 
-  const handlePrintIDs = (gid?: string) => {
+  const handlePrintIDs = (gid?: string, autoPrint: boolean = false) => {
     try {
-      generateIDCards(delegates, groups, gid) 
-      showToast('ID PDF generated', 'success')
+      generateIDCards(delegates, groups, gid, autoPrint) 
+      showToast(autoPrint ? 'Opening Print Dialog...' : 'ID PDF generated', 'success')
     } catch { showToast('No delegates to print', 'error') }
   }
 
@@ -385,6 +388,16 @@ function App() {
                   </form>
                 </section>
               </div>
+            )
+          }
+        />
+        <Route
+          path="/admin/id-printer"
+          element={
+            isAdminUnlocked ? (
+              <IDPrinterTool onGoBack={() => navigate('/admin')} showToast={showToast} delegates={delegates} groups={groups} />
+            ) : (
+              <Navigate to="/admin" replace />
             )
           }
         />
