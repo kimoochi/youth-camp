@@ -112,15 +112,27 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
     return { male, female }
   }
 
-  // Count total males and females in the pool for fair distribution
-  const poolGenderCounts = { male: 0, female: 0 }
+  // Count total males and females: pool + existing unlocked group members
+  const allMalesInScope = new Set<string>()
+  const allFemalesInScope = new Set<string>()
+
   effectivePool.forEach(d => {
-    if (d.gender === 'Male') poolGenderCounts.male++
-    else poolGenderCounts.female++
+    if (d.gender === 'Male') allMalesInScope.add(d.id)
+    else allFemalesInScope.add(d.id)
   })
 
-  // Calculate target male count per group
-  const targetMalesPerGroup = Math.ceil(poolGenderCounts.male / workingGroups.length)
+  workingGroups.forEach(g => {
+    g.delegateIds.forEach(id => {
+      const d = delegates.find(x => x.id === id)
+      if (d) {
+        if (d.gender === 'Male') allMalesInScope.add(d.id)
+        else allFemalesInScope.add(d.id)
+      }
+    })
+  })
+
+  // Calculate target male count per group based on total scope
+  const targetMalesPerGroup = Math.ceil(allMalesInScope.size / workingGroups.length)
 
   // 3. Sort pool by age (oldest first)
   const sortedPool = [...effectivePool].sort((a, b) => b.age - a.age)
@@ -251,12 +263,14 @@ export const toggleGroupLock = async (groupId: string, locked: boolean) => {
 }
 
 export const clearAllGroups = async (groups: Group[], delegates: Delegate[]) => {
-  const updates = groups.map(g => {
-    const leaderIds = g.delegateIds.filter(id => {
-      const d = delegates.find(del => del.id === id)
-      return d?.role === 'Leader' || d?.role === 'Assistant Leader'
+  const updates = groups
+    .filter(g => !g.locked)
+    .map(g => {
+      const leaderIds = g.delegateIds.filter(id => {
+        const d = delegates.find(del => del.id === id)
+        return d?.role === 'Leader' || d?.role === 'Assistant Leader'
+      })
+      return updateDoc(doc(db, 'groups', g.id), { delegateIds: leaderIds })
     })
-    return updateDoc(doc(db, 'groups', g.id), { delegateIds: leaderIds })
-  })
   await Promise.all(updates)
 }
