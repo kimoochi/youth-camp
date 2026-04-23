@@ -6,11 +6,13 @@ import { getChurchName } from '../types'
 import BereansImg from '../assets/Bereans.png'
 import DavidImg from '../assets/David.png'
 import JohnImg from '../assets/John.png'
+import PeterImg from '../assets/Peter.png'
 
 const GROUP_LAYOUTS: Record<string, string> = {
   'Bereans': BereansImg,
   'David': DavidImg,
   'John': JohnImg,
+  'Peter': PeterImg,
 }
 
 export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {

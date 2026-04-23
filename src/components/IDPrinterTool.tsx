@@ -5,6 +5,7 @@ import type { Delegate } from '../types'
 import BereansImg from '../assets/Bereans.png'
 import DavidImg from '../assets/David.png'
 import JohnImg from '../assets/John.png'
+import PeterImg from '../assets/Peter.png'
 
 import type { Group } from '../types'
 
@@ -26,6 +27,7 @@ const GROUP_LAYOUTS: Record<string, string> = {
   'Bereans': BereansImg,
   'David': DavidImg,
   'John': JohnImg,
+  'Peter': PeterImg,
 }
 
 const IDPrinterTool: React.FC<IDPrinterToolProps> = ({ onGoBack, showToast, delegates, groups }) => {
