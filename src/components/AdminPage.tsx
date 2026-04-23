@@ -434,10 +434,17 @@ function AdminPage({
           <button
             className="admin-clear-btn"
             style={{ background: '#7c3aed', color: 'white' }}
-            onClick={() => generateChurchListExcel(
-              adminChurchFilter === 'ALL' ? delegates : delegates.filter(d => d.church === adminChurchFilter), 
-              groups
-            )}
+            onClick={async () => {
+              try {
+                await generateChurchListExcel(
+                  adminChurchFilter === 'ALL' ? delegates : delegates.filter(d => d.church === adminChurchFilter), 
+                  groups
+                )
+                showToast('Excel file downloaded', 'success')
+              } catch {
+                showToast('Failed to generate Excel', 'error')
+              }
+            }}
             aria-label="Download delegates by church as Excel"
           >
             📊 Church List
