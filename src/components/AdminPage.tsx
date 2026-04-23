@@ -2,7 +2,8 @@ import { useState, useMemo, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
-import { generateGroupListPDF, generateChurchListPDF } from '../utils/pdfGenerator'
+import { generateGroupListPDF } from '../utils/pdfGenerator'
+import { generateChurchListExcel } from '../utils/excelGenerator'
 import { moveDelegateToGroup } from '../services/firestoreService'
 
 interface AdminPageProps {
@@ -433,13 +434,13 @@ function AdminPage({
           <button
             className="admin-clear-btn"
             style={{ background: '#7c3aed', color: 'white' }}
-            onClick={() => generateChurchListPDF(
+            onClick={() => generateChurchListExcel(
               adminChurchFilter === 'ALL' ? delegates : delegates.filter(d => d.church === adminChurchFilter), 
               groups
             )}
-            aria-label="Download delegates by church"
+            aria-label="Download delegates by church as Excel"
           >
-            Church List
+            📊 Church List
           </button>
           <select
             value={adminChurchFilter}
