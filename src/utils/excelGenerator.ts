@@ -14,6 +14,9 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
   wb.creator = 'Youth Camp 2026'
   wb.created = new Date()
 
+  // Force Excel to recalculate ALL formulas when the file is opened
+  wb.calcProperties = { fullCalcOnLoad: true }
+
   // Build delegate -> group lookup
   const delegateGroupMap: Record<string, string> = {}
   groups.forEach(g => {
@@ -56,12 +59,14 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
 
   let hasAnySheet = false
 
+  // Track each church sheet's data row count for precise COUNTIF ranges
+  const churchSheetInfo: { sheetName: string; dataRows: number }[] = []
+
   allChurchIds.forEach(churchId => {
     const members = churchDelegates[churchId]
     if (!members || members.length === 0) return
 
     const sorted = [...members].sort((a, b) => a.lastName.localeCompare(b.lastName))
-    const churchName = getChurchName(churchId)
 
     const ws = wb.addWorksheet(churchId.substring(0, 31))
     ws.columns = columns
@@ -201,10 +206,11 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
     footerRow.getCell(1).value = `Total: ${sorted.length}`
     footerRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF555555' } }
 
+    churchSheetInfo.push({ sheetName: churchId.substring(0, 31), dataRows: sorted.length })
     hasAnySheet = true
   })
 
-  // --- Summary sheet ---
+  // --- Summary sheet (uses COUNTIF formulas so it auto-updates) ---
   const summaryWs = wb.addWorksheet('Summary')
   summaryWs.columns = [
     { header: 'Church', key: 'church', width: 40 },
@@ -226,41 +232,64 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
     cell.border = { bottom: { style: 'thin', color: { argb: 'FFBBBBBB' } } }
   })
 
-  let gTotal = 0, gMales = 0, gFemales = 0, gLeaders = 0, gPaid = 0, gUnpaid = 0
-
-  Array.from(allChurchIds)
+  // Track which churches got sheets so we can build formulas
+  const churchesWithSheets = Array.from(allChurchIds)
     .filter(id => churchDelegates[id] && churchDelegates[id].length > 0)
-    .forEach(churchId => {
-      const members = churchDelegates[churchId] || []
-      const paid = members.filter(m => m.paymentStatus === 'PAID').length
-      const unpaid = members.filter(m => m.paymentStatus === 'UNPAID').length
-      const leaders = members.filter(m => m.role === 'Leader' || m.role === 'Assistant Leader').length
-      const males = members.filter(m => m.gender === 'Male').length
-      const females = members.filter(m => m.gender === 'Female').length
 
-      gTotal += members.length; gMales += males; gFemales += females
-      gLeaders += leaders; gPaid += paid; gUnpaid += unpaid
+  let summaryDataRowCount = 0
 
-      const row = summaryWs.addRow({
-        church: getChurchName(churchId), code: churchId,
-        total: members.length, males, females, leaders, paid, unpaid,
-      })
+  churchesWithSheets.forEach((churchId, i) => {
+    const members = churchDelegates[churchId] || []
+    const leaders = members.filter(m => m.role === 'Leader' || m.role === 'Assistant Leader').length
+    const males = members.filter(m => m.gender === 'Male').length
+    const females = members.filter(m => m.gender === 'Female').length
 
-      row.font = { size: 10 }
-      row.eachCell(cell => {
-        cell.border = { bottom: { style: 'hair', color: { argb: 'FFDDDDDD' } } }
-      })
+    // Sheet name used in formulas (quote it for safety with special chars)
+    const info = churchSheetInfo[i]
+    const sheetRef = `'${info.sheetName}'`
+    const lastRow = info.dataRows + 1 // +1 for header row
 
-      // Paid green, Unpaid red
-      row.getCell(7).font = { size: 10, bold: true, color: { argb: 'FF15803D' } }
-      row.getCell(8).font = { size: 10, bold: true, color: { argb: 'FFDC2626' } }
+    const row = summaryWs.addRow({
+      church: getChurchName(churchId),
+      code: churchId,
+      total: members.length,
+      males,
+      females,
+      leaders,
     })
 
-  // Totals row
-  const tRow = summaryWs.addRow({
-    church: 'TOTAL', code: '', total: gTotal,
-    males: gMales, females: gFemales, leaders: gLeaders, paid: gPaid, unpaid: gUnpaid,
+    // Paid = COUNTIF formula with exact range (e.g. 'MIBC'!L2:L43)
+    row.getCell(7).value = { formula: `COUNTIF(${sheetRef}!${paymentColLetter}2:${paymentColLetter}${lastRow},"PAID")` }
+    // Unpaid = COUNTIF formula with exact range
+    row.getCell(8).value = { formula: `COUNTIF(${sheetRef}!${paymentColLetter}2:${paymentColLetter}${lastRow},"UNPAID")` }
+
+    row.font = { size: 10 }
+    row.eachCell(cell => {
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFDDDDDD' } } }
+    })
+
+    // Paid green, Unpaid red
+    row.getCell(7).font = { size: 10, bold: true, color: { argb: 'FF15803D' } }
+    row.getCell(8).font = { size: 10, bold: true, color: { argb: 'FFDC2626' } }
+
+    summaryDataRowCount++
   })
+
+  const firstDataRow = 2
+  const lastDataRow = summaryDataRowCount + 1
+
+  const tRow = summaryWs.addRow({
+    church: 'TOTAL',
+    code: '',
+  })
+  // Total, Males, Females, Leaders, Paid, Unpaid — all SUM formulas
+  tRow.getCell(3).value = { formula: `SUM(C${firstDataRow}:C${lastDataRow})` }
+  tRow.getCell(4).value = { formula: `SUM(D${firstDataRow}:D${lastDataRow})` }
+  tRow.getCell(5).value = { formula: `SUM(E${firstDataRow}:E${lastDataRow})` }
+  tRow.getCell(6).value = { formula: `SUM(F${firstDataRow}:F${lastDataRow})` }
+  tRow.getCell(7).value = { formula: `SUM(G${firstDataRow}:G${lastDataRow})` }
+  tRow.getCell(8).value = { formula: `SUM(H${firstDataRow}:H${lastDataRow})` }
+
   tRow.font = { bold: true, size: 11 }
   tRow.eachCell(cell => {
     cell.border = { top: { style: 'thin', color: { argb: 'FF999999' } } }
@@ -268,15 +297,12 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
   tRow.getCell(7).font = { bold: true, size: 11, color: { argb: 'FF15803D' } }
   tRow.getCell(8).font = { bold: true, size: 11, color: { argb: 'FFDC2626' } }
 
-  // Move Summary to front
+  // Reorder sheets to put Summary first
   const sheetNames = wb.worksheets.map(s => s.name)
   const summaryIdx = sheetNames.indexOf('Summary')
   if (summaryIdx > 0) {
-    wb.worksheets[summaryIdx].orderNo = 0
-    wb.worksheets.forEach((s, i) => {
-      if (i !== summaryIdx) s.orderNo = i + 1
-    })
-    wb.worksheets.sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0))
+    const summarySheet = wb.worksheets.splice(summaryIdx, 1)[0]
+    wb.worksheets.unshift(summarySheet)
   }
 
   if (!hasAnySheet) {
