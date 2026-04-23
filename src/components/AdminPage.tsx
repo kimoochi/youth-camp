@@ -2,7 +2,7 @@ import { useState, useMemo, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
-import { generateGroupListPDF } from '../utils/pdfGenerator'
+import { generateGroupListPDF, generateChurchListPDF } from '../utils/pdfGenerator'
 import { moveDelegateToGroup } from '../services/firestoreService'
 
 interface AdminPageProps {
@@ -140,13 +140,11 @@ function GroupCard({
         </div>
       </div>
 
-      {!locked && (
-        <div className="group-card-actions">
+      <div className="group-card-actions">
           <button className="group-btn" onClick={() => generateGroupListPDF(g, delegates)} title="Download Member List">List PDF</button>
           <button className="group-btn" onClick={() => onPrintIDs(g.id, false)} title="Download ID Cards">IDs PDF</button>
           <button className="group-btn primary" onClick={() => onPrintIDs(g.id, true)} title="Direct Print IDs">Print IDs</button>
         </div>
-      )}
 
       {leader ? (
         <div className="role-section leader-section">
@@ -431,6 +429,17 @@ function AdminPage({
             onClick={() => navigate('/admin/id-printer')}
           >
             Manual ID Tool
+          </button>
+          <button
+            className="admin-clear-btn"
+            style={{ background: '#7c3aed', color: 'white' }}
+            onClick={() => generateChurchListPDF(
+              adminChurchFilter === 'ALL' ? delegates : delegates.filter(d => d.church === adminChurchFilter), 
+              groups
+            )}
+            aria-label="Download delegates by church"
+          >
+            Church List
           </button>
           <select
             value={adminChurchFilter}

@@ -54,19 +54,77 @@ export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {
     // Use acronym (m.church) instead of full name to save space
     doc.text(m.church, 70, y)
 
-    // Remove age and size for staff
-    if (!isStaff) {
-      doc.text(m.age.toString(), 160, y)
-      doc.text(m.tshirtSize, 180, y)
-    } else {
-      doc.text('---', 160, y)
-      doc.text('---', 180, y)
-    }
+    // Show tshirt size for all members (including leaders)
+    doc.text(m.age.toString(), 160, y)
+    doc.text(m.tshirtSize, 180, y)
 
     y += 8
   })
 
   doc.save(`${group.name.replace(/\s+/g, '_')}_Members.pdf`)
+}
+
+export const generateChurchListPDF = (delegates: Delegate[], groups: Group[]) => {
+  const doc = new jsPDF()
+
+  const churchDelegates: Record<string, Delegate[]> = {}
+  delegates.forEach(d => {
+    if (!churchDelegates[d.church]) {
+      churchDelegates[d.church] = []
+    }
+    churchDelegates[d.church].push(d)
+  })
+
+  doc.setFontSize(18)
+  doc.text('YOUTH CAMP 2026', 14, 20)
+  doc.setFontSize(14)
+  doc.text('Delegates by Church', 14, 30)
+
+  let y = 45
+  const churches = Object.keys(churchDelegates).sort()
+
+  churches.forEach(churchId => {
+    if (y > 270) { doc.addPage(); y = 20 }
+
+    const churchName = getChurchName(churchId)
+    const members = churchDelegates[churchId].sort((a, b) => a.lastName.localeCompare(b.lastName))
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${churchName} (${members.length})`, 14, y)
+    y += 8
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Name', 14, y)
+    doc.text('Age', 130, y)
+    doc.text('Size', 160, y)
+    doc.text('Group', 180, y)
+    y += 2
+    doc.line(14, y, 196, y)
+    y += 6
+
+    doc.setFont('helvetica', 'normal')
+    members.forEach(m => {
+      if (y > 280) { doc.addPage(); y = 20 }
+
+      const group = groups.find(g => g.delegateIds.includes(m.id))
+      const groupName = group ? group.name : 'Unassigned'
+      const isStaff = m.role === 'Leader' || m.role === 'Assistant Leader'
+      const roleLabel = isStaff ? ` (${m.role})` : ''
+
+      doc.text(`${m.lastName}, ${m.firstName}${roleLabel}`, 14, y)
+      doc.text(m.age.toString(), 130, y)
+      doc.text(m.tshirtSize, 160, y)
+      doc.text(groupName, 180, y)
+
+      y += 7
+    })
+
+    y += 8
+  })
+
+  doc.save('Churches_Delegates.pdf')
 }
 
 /**
