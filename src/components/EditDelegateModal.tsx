@@ -30,11 +30,12 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (delegate) {
+      const printedValue = formData.tshirtPrinted === 'Printed';
       const saveData = {
         ...formData,
-        tshirtPrinted: formData.tshirtPrinted === 'Printed',
+        tshirtPrinted: printedValue,
       };
-      onSave(delegate.id, saveData);
+      onSave(delegate.id, saveData as any);
     }
   };
 

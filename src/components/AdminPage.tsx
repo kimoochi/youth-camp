@@ -766,6 +766,7 @@ function AdminPage({
                 tshirtSize: (form.elements.namedItem('tshirtSize') as HTMLSelectElement).value as TShirtSize,
                 category: (form.elements.namedItem('category') as HTMLSelectElement).value as Delegate['category'],
                 gender: (form.elements.namedItem('gender') as HTMLSelectElement).value as 'Male' | 'Female',
+                tshirtPrinted: (form.elements.namedItem('tshirtPrinted') as HTMLSelectElement).value === 'Printed',
               }
               try {
                 await onUpdateDelegate(selectedDelegate.id, updates)
@@ -810,6 +811,13 @@ function AdminPage({
                     <option value="16">16</option><option value="18">18</option><option value="20">20</option>
                     <option value="XS">XS</option><option value="S">S</option><option value="M">M</option>
                     <option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>T-Shirt Printed</label>
+                  <select name="tshirtPrinted" defaultValue={selectedDelegate.tshirtPrinted ? 'Printed' : 'Not Printed'}>
+                    <option value="Not Printed">Not Printed</option>
+                    <option value="Printed">Printed</option>
                   </select>
                 </div>
               </div>
