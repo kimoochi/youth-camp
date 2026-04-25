@@ -219,7 +219,7 @@ export const performAutoGrouping = async (delegates: Delegate[], groups: Group[]
     const delegateUpdates = addedDelegateIds.map(id => updateDoc(doc(db, 'delegates', id), { isNew: true }))
     
     await Promise.all([...groupUpdates, ...delegateUpdates])
-    return { success: true, message: `Grouped ${effectivePool.length} new delegates across groups.` }
+    return { success: true, message: `Grouped ${effectivePool.length} new delegates across groups.`, previousGroups: groups.map(g => ({ id: g.id, delegateIds: [...g.delegateIds] })) }
   } catch {
     return { success: false, message: 'Database error during grouping.' }
   }

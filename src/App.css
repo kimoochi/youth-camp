@@ -1273,80 +1273,24 @@ tr:last-child td { border-bottom: none; }
   flex-shrink: 0;
 }
 
-.admin-church-filter {
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border: 2px solid #555;
-  background: #2a2a2a;
-  color: white;
-  font-size: 0.85rem;
-  font-weight: 600;
-  max-width: 200px;
-  cursor: pointer;
-}
-
-.admin-church-filter option {
-  background: white;
-  color: black;
-  padding: 0.5rem;
-}
-
-.admin-autogroup-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: none;
-  background: var(--primary);
-  color: black;
-  font-weight: 800;
-  font-size: 0.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.admin-undo-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: 2px solid var(--primary);
-  background: transparent;
-  color: var(--primary);
-  font-weight: 800;
-  font-size: 0.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.admin-undo-btn:hover {
-  background: var(--primary);
-  color: black;
-}
-
-.admin-clear-btn {
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  border: 2px solid var(--danger);
-  background: transparent;
-  color: var(--danger);
-  font-weight: 700;
-  font-size: 0.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.admin-clear-btn:hover {
-  background: var(--danger);
-  color: white;
-}
-
+.admin-church-filter,
+.admin-autogroup-btn,
+.admin-undo-btn,
+.admin-clear-btn,
 .admin-exit-btn {
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  border: 2px solid var(--primary);
-  background: transparent;
-  color: var(--primary);
   font-weight: 700;
   font-size: 0.75rem;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.admin-church-filter {
+  border: 2px solid #555;
+  background: #2a2a2a;
+  color: white;
+  max-width: 200px;
 }
 
 /* Layout */
@@ -1368,6 +1312,7 @@ tr:last-child td { border-bottom: none; }
   overflow: visible;
   position: relative;
   transition: width 0.2s ease;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
 }
 
 .admin-sidebar.collapsed {
@@ -1425,11 +1370,103 @@ tr:last-child td { border-bottom: none; }
 }
 
 .sidebar-tabs {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 2px solid var(--primary);
+  flex-shrink: 0;
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 0.6rem 0.15rem;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #999;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.sidebar-tab.active {
+  color: white;
+  border-bottom-color: var(--primary);
+}
+
+.sidebar-tab:hover:not(.active) {
+  color: #ccc;
+  background: rgba(255,255,255,0.05);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  background: #1a1a1a;
+}
+
+.sidebar-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 0.5rem 0.6rem;
   background: #f0f0f0;
   border-bottom: 1px solid #ddd;
-  flex-shrink: 0;
+}
+
+.sidebar-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.35rem 0.25rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e5e5e5;
+}
+
+.sidebar-stat-label {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-stat-value {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: black;
+}
+
+.sidebar-stat-value.danger { color: #dc2626; }
+.sidebar-stat-value.warning { color: #f59e0b; }
+.sidebar-stat-value.info { color: #3b82f6; }
+.sidebar-stat-value.purple { color: #9333ea; }
+
+.sidebar-title {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sidebar-count {
+  background: var(--primary);
+  color: black;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .sidebar-tab {
@@ -1456,11 +1493,13 @@ tr:last-child td { border-bottom: none; }
 }
 
 .tab-badge {
+  display: inline-block;
   padding: 1px 6px;
   border-radius: 10px;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: white;
+  background: #666;
 }
 
 .tab-badge.danger { background: #dc2626; }
@@ -1494,15 +1533,14 @@ tr:last-child td { border-bottom: none; }
   background: white;
   border: 1px solid #e5e5e5;
   border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
   cursor: grab;
   transition: all 0.2s;
-  overflow: hidden;
   min-width: 0;
 }
 
@@ -1522,26 +1560,32 @@ tr:last-child td { border-bottom: none; }
 
 .delegate-row-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: black;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .delegate-row-church {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #666;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+}
+
+.delegate-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .delegate-row-actions {
   display: flex;
-  gap: 4px;
+  gap: 0.35rem;
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -1549,10 +1593,14 @@ tr:last-child td { border-bottom: none; }
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
   border: none;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .paid-btn { background: #22c55e; color: white; }
@@ -1566,11 +1614,10 @@ tr:last-child td { border-bottom: none; }
   display: inline-block;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 800;
   text-transform: uppercase;
   width: fit-content;
-  margin-top: 2px;
 }
 
 .role-tag.leader { background: #ffedd5; color: #ea580c; }
@@ -1591,6 +1638,7 @@ tr:last-child td { border-bottom: none; }
   background: #f5f5f5;
   min-width: 0;
   width: 100%;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.05);
 }
 
 .groups-grid {
@@ -1602,15 +1650,16 @@ tr:last-child td { border-bottom: none; }
 }
 
 .group-card {
-  padding: 0.8rem;
+  padding: 0;
   border-radius: 12px;
   background: white;
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0;
   transition: all 0.2s;
+  overflow: hidden;
 }
 
 .group-card-header {
@@ -1621,6 +1670,7 @@ tr:last-child td { border-bottom: none; }
   background: #fafafa;
   border-bottom: 1px solid #eee;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .group-gender {
@@ -1727,21 +1777,26 @@ tr:last-child td { border-bottom: none; }
 
 .group-card-actions {
   display: flex;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
   border-bottom: 1px solid #eee;
+  background: #fafafa;
 }
 
 .group-btn {
   flex: 1;
-  padding: 0.35rem;
-  border-radius: 4px;
+  padding: 0.5rem;
+  border-radius: 6px;
   border: 2px solid #ddd;
   background: white;
   color: black;
   font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .group-btn:hover {
@@ -1768,7 +1823,7 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 
 .role-header span {
@@ -1799,30 +1854,49 @@ tr:last-child td { border-bottom: none; }
 .member-card {
   background: #fafafa;
   border-radius: 6px;
-  padding: 0.6rem;
+  padding: 0.5rem 0.6rem;
   margin-bottom: 0.4rem;
   overflow: hidden;
+  border-left: 3px solid transparent;
 }
 
 .member-card:last-child {
   margin-bottom: 0;
 }
 
+.member-card.is-new {
+  border-left-color: var(--primary);
+  background: #fefce8;
+}
+
+.member-card.is-new .member-name::after {
+  content: 'NEW';
+  display: inline-block;
+  background: var(--primary);
+  color: black;
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .member-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.4rem;
   gap: 0.5rem;
 }
 
 .member-name {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: black;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
 .status-tag {
@@ -1836,6 +1910,11 @@ tr:last-child td { border-bottom: none; }
 
 .status-tag.paid { background: #dcfce7; color: #16a34a; }
 .status-tag.unpaid { background: #fee2e2; color: #dc2626; }
+
+.status-tag.compact {
+  padding: 1px 5px;
+  font-size: 0.5rem;
+}
 
 .member-quick-edit {
   display: flex;
@@ -1898,6 +1977,24 @@ tr:last-child td { border-bottom: none; }
 /* Members Section */
 .members-section {
   padding: 0.6rem 0.8rem;
+}
+
+.shirt-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.shirt-toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.shirt-label {
+  font-size: 0.8rem;
+  margin-left: 2px;
 }
 
 .section-label {
@@ -2331,27 +2428,14 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 0.9rem;
-  border-radius: 10px;
-  margin-bottom: 0.75rem;
-  gap: 0.75rem;
-  width: 100%;
-  text-align: left;
-  border: none;
-  cursor: default;
-  font-family: inherit;
-}
-
-.groups-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 0.8rem 1.2rem;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .groups-section-title-row {
@@ -2359,6 +2443,13 @@ tr:last-child td { border-bottom: none; }
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.groups-section-header .fab-auto-group {
+  position: static;
+  min-height: 36px;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
 }
 
 .groups-section-icon {
@@ -2663,4 +2754,19 @@ tr:last-child td { border-bottom: none; }
 
 .group-card.locked .group-name-input {
   color: #7a6533;
+}
+
+.group-just-added-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  background: #f5c518;
+  color: black;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.group-just-added-count {
+  font-weight: 800;
 }

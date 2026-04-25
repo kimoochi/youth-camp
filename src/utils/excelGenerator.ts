@@ -97,7 +97,7 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
         gender: m.gender,
         category: m.category,
         tshirtSize: m.tshirtSize,
-        tshirtPrinted: 'Not Printed',
+        tshirtPrinted: m.tshirtPrinted ? 'Printed' : 'Not Printed',
         group: groupName,
         role: roleLabel,
         payment: m.paymentStatus,

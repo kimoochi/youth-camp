@@ -50,6 +50,7 @@ function App() {
   const [groups, setGroups] = useState<Group[]>([])
   const [hydrated, setHydrated] = useState(false)
   const [previousGroupsState, setPreviousGroupsState] = useState<Group[] | null>(null)
+  const [justAddedGroupIds, setJustAddedGroupIds] = useState<string[]>([])
 
   const [adminChurchFilter, setAdminChurchFilter] = useState<ChurchId | 'ALL'>('ALL')
   const groupCount = 4
@@ -163,6 +164,16 @@ function App() {
   const handleAutoGroup = async () => {
     setPreviousGroupsState([...groups])
     const result = await performAutoGrouping(delegates, groups, groupCount)
+    
+    const addedGroupIds: string[] = []
+    groups.forEach(g => {
+      const originalGroup = result.previousGroups?.find(og => og.id === g.id)
+      const originalIds = new Set(originalGroup?.delegateIds || [])
+      const newCount = g.delegateIds.filter(id => !originalIds.has(id)).length
+      if (newCount > 0) addedGroupIds.push(g.id)
+    })
+    setJustAddedGroupIds(addedGroupIds)
+    
     showToast(result.message, result.success ? 'success' : 'info')
   }
 
@@ -312,6 +323,7 @@ function App() {
                 unassignedPaidDelegates={unassignedPaidDelegates}
                 adminChurchFilter={adminChurchFilter}
                 groupCount={groupCount}
+                justAddedGroupIds={justAddedGroupIds}
                 onSetAdminChurchFilter={setAdminChurchFilter}
                 onAutoGroup={handleAutoGroup}
                 onUndoAutoGroup={handleUndoAutoGroup}

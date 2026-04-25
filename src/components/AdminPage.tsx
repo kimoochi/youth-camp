@@ -14,6 +14,7 @@ interface AdminPageProps {
   unassignedPaidDelegates: Delegate[]
   adminChurchFilter: ChurchId | 'ALL'
   groupCount: number
+  justAddedGroupIds: string[]
   onSetAdminChurchFilter: (val: ChurchId | 'ALL') => void
   onAutoGroup: () => void
   onUndoAutoGroup: () => void
@@ -34,7 +35,7 @@ interface AdminPageProps {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void
 }
 
-type SidebarTab = 'unpaid' | 'late' | 'unassigned' | 'leaders'
+type SidebarTab = 'unpaid' | 'late' | 'unassigned' | 'leaders' | 'registered'
 
 function MemberTShirtSelect({ member, onUpdate, showToast }: {
   member: Delegate
@@ -68,6 +69,7 @@ interface GroupCardProps {
   delegates: Delegate[]
   groups: Group[]
   locked: boolean
+  justAddedGroupIds: string[]
   onToggleGroupLock: (groupId: string, locked: boolean, delegateIds: string[]) => void
   onRenameGroup: (id: string, name: string) => void
   onDropToGroup: (groupId: string) => void
@@ -83,7 +85,7 @@ interface GroupCardProps {
 }
 
 function GroupCard({
-  g, delegates, groups, locked,
+  g, delegates, groups, locked, justAddedGroupIds,
   onToggleGroupLock, onRenameGroup, onDropToGroup, onDragStart,
   onPrintIDs, onTogglePayment, onRemoveLeadership, onDeleteDelegate,
   onUpdateDelegate, onAddLeader, setSelectedDelegate, showToast
@@ -92,6 +94,9 @@ function GroupCard({
   const leader = members.find(m => m.role === 'Leader')
   const assistants = members.filter(m => m.role === 'Assistant Leader')
   const standard = members.filter(m => m.role !== 'Leader' && m.role !== 'Assistant Leader')
+  
+  const isJustAdded = justAddedGroupIds.includes(g.id)
+  const justAddedMemberCount = isJustAdded ? members.filter(m => m.isNew).length : 0
 
   return (
     <div
@@ -101,6 +106,11 @@ function GroupCard({
       aria-label={`Group: ${g.name}${locked ? ' (locked)' : ''}`}
       aria-disabled={locked}
     >
+      {isJustAdded && justAddedMemberCount > 0 && (
+        <div className="group-just-added-banner">
+          <span><span className="group-just-added-count">{justAddedMemberCount}</span> member{justAddedMemberCount !== 1 ? 's' : ''} just added</span>
+        </div>
+      )}
       <div className="group-card-header">
         <div className="group-header-left">
           {locked && (
@@ -160,6 +170,12 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={leader} onUpdate={onUpdateDelegate} showToast={showToast} />
+                   <label className="shirt-toggle" title="Shirt printed?">
+                     <input type="checkbox" checked={!!leader.tshirtPrinted} onChange={async () => {
+                       try { await onUpdateDelegate(leader.id, { tshirtPrinted: !leader.tshirtPrinted }); showToast(leader.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                     }} />
+                     <span className="shirt-label">👕</span>
+                   </label>
                 </div>
                 <div className="member-actions">
                   <button className="member-btn" onClick={() => onTogglePayment(leader.id, leader.paymentStatus)}>{leader.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
@@ -195,6 +211,12 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={a} onUpdate={onUpdateDelegate} showToast={showToast} />
+                   <label className="shirt-toggle" title="Shirt printed?">
+                     <input type="checkbox" checked={!!a.tshirtPrinted} onChange={async () => {
+                       try { await onUpdateDelegate(a.id, { tshirtPrinted: !a.tshirtPrinted }); showToast(a.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                     }} />
+                     <span className="shirt-label">👕</span>
+                   </label>
                 </div>
                 <div className="member-actions">
                   <button className="member-btn" onClick={() => onTogglePayment(a.id, a.paymentStatus)}>{a.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
@@ -223,6 +245,12 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={m} onUpdate={onUpdateDelegate} showToast={showToast} />
+                   <label className="shirt-toggle" title="Shirt printed?">
+                     <input type="checkbox" checked={!!m.tshirtPrinted} onChange={async () => {
+                       try { await onUpdateDelegate(m.id, { tshirtPrinted: !m.tshirtPrinted }); showToast(m.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                     }} />
+                     <span className="shirt-label">👕</span>
+                   </label>
                 </div>
                 <div className="member-actions">
                   <select
@@ -304,6 +332,7 @@ function AdminPage({
   unassignedPaidDelegates,
   adminChurchFilter,
   delegates,
+  justAddedGroupIds = [],
   onSetAdminChurchFilter,
   onAutoGroup,
   onUndoAutoGroup,
@@ -378,12 +407,14 @@ function AdminPage({
   const lateDelegates = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt >= '2026-05-05'))
   const regularUnassigned = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05'))
   const visibleLeaders = sortByLastName(filterByChurch(delegates.filter(d => d.role === 'Leader' || d.role === 'Assistant Leader')))
+  const allRegistered = sortByLastName(filterByChurch(delegates))
 
   const getSlideOffset = () => {
     if (activeSidebarTab === 'unpaid') return '0%'
     if (activeSidebarTab === 'late') return '-100%'
     if (activeSidebarTab === 'unassigned') return '-200%'
     if (activeSidebarTab === 'leaders') return '-300%'
+    if (activeSidebarTab === 'registered') return '-400%'
     return '0%'
   }
 
@@ -392,6 +423,7 @@ function AdminPage({
     delegates,
     groups: allGroups,
     locked: !!g.locked,
+    justAddedGroupIds,
     onToggleGroupLock,
     onRenameGroup,
     onDropToGroup,
@@ -487,7 +519,14 @@ function AdminPage({
           </button>
           {!sidebarCollapsed && (
             <>
+              <div className="sidebar-header">
+                <span className="sidebar-title">Delegates</span>
+                <span className="sidebar-count">{delegates.length}</span>
+              </div>
               <div className="sidebar-tabs" role="tablist">
+                <button role="tab" aria-selected={activeSidebarTab === 'registered'} className={`sidebar-tab ${activeSidebarTab === 'registered' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('registered')}>
+                  All <span className="tab-badge">{allRegistered.length}</span>
+                </button>
                 <button role="tab" aria-selected={activeSidebarTab === 'unpaid'} className={`sidebar-tab ${activeSidebarTab === 'unpaid' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('unpaid')}>
                   Unpaid <span className="tab-badge danger">{visibleUnpaid.length}</span>
                 </button>
@@ -571,6 +610,31 @@ function AdminPage({
                         </div>
                       </div>
                     )) : <div className="empty-state">No leaders registered</div>}
+                  </div>
+
+                  {/* PANE: ALL REGISTERED */}
+                  <div className="sidebar-pane" role="tabpanel">
+                    {allRegistered.length > 0 ? allRegistered.map(d => (
+                      <div key={d.id} className="delegate-row">
+                        <div className="delegate-row-main">
+                          <span className="delegate-row-name">{d.lastName}, {d.firstName}</span>
+                          <span className="delegate-row-meta">
+                            <span className="delegate-row-church">{d.church}</span>
+                            {d.role && d.role !== 'Delegate' && <span className={`role-tag ${d.role?.toLowerCase().replace(' ', '-')}`}>{d.role === 'Assistant Leader' ? 'Asst' : d.role}</span>}
+                          </span>
+                        </div>
+                        <div className="delegate-row-actions">
+                          <label className="shirt-toggle" title="Shirt printed?">
+                            <input type="checkbox" checked={!!d.tshirtPrinted} onChange={async () => {
+                              try { await onUpdateDelegate(d.id, { tshirtPrinted: !d.tshirtPrinted }); showToast(d.tshirtPrinted ? 'Shirt unmarked' : 'Shirt printed ✓', 'success') } catch { showToast('Failed', 'error') }
+                            }} />
+                            <span className="shirt-label">👕</span>
+                          </label>
+                          <span className={`status-tag compact ${d.paymentStatus.toLowerCase()}`}>{d.paymentStatus}</span>
+                          <button className="action-btn edit-btn" onClick={() => setSelectedDelegate(d)} aria-label="Edit">Edit</button>
+                        </div>
+                      </div>
+                    )) : <div className="empty-state">No delegates registered</div>}
                   </div>
                 </div>
               </div>

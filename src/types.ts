@@ -44,6 +44,8 @@ export interface Delegate {
   preferredName?: string
   isNew?: boolean
   locked?: boolean
+  tshirtPrinted?: boolean
+  justAdded?: boolean
 }
 
 export interface Group {
@@ -62,5 +64,6 @@ export interface RegistrationFormState {
   birthday: string
   category: DelegateCategory
   tshirtSize: TShirtSize
+  tshirtPrinted: 'Not Printed' | 'Printed'
   preferredName: string
 }
