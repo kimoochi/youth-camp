@@ -30,6 +30,12 @@ const GROUP_LAYOUTS: Record<string, string> = {
   'Peter': PeterImg,
 }
 
+const getLayoutForGroup = (groupName: string): string => {
+  const name = groupName.toLowerCase()
+  const key = Object.keys(GROUP_LAYOUTS).find(k => name.includes(k.toLowerCase()))
+  return key || 'Bereans'
+}
+
 const IDPrinterTool: React.FC<IDPrinterToolProps> = ({ onGoBack, showToast, delegates, groups }) => {
   const [selectedChurchId, setSelectedChurchId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
@@ -150,6 +156,10 @@ const IDPrinterTool: React.FC<IDPrinterToolProps> = ({ onGoBack, showToast, dele
                   onChange={e => {
                     setSelectedGroupId(e.target.value)
                     setSelectedDelegateId('')
+                    const selectedGroup = groups.find(g => g.id === e.target.value)
+                    if (selectedGroup) {
+                      setGroupName(getLayoutForGroup(selectedGroup.name))
+                    }
                   }}
                   className="input-large"
                 >
@@ -169,6 +179,10 @@ const IDPrinterTool: React.FC<IDPrinterToolProps> = ({ onGoBack, showToast, dele
                     const delegate = delegates.find(d => d.id === e.target.value)
                     if (delegate) {
                       setSelectedChurchId(delegate.church)
+                      const delegateGroup = groups.find(g => g.delegateIds.includes(delegate.id))
+                      if (delegateGroup) {
+                        setGroupName(getLayoutForGroup(delegateGroup.name))
+                      }
                     }
                   }}
                   className="input-large"
