@@ -170,12 +170,18 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={leader} onUpdate={onUpdateDelegate} showToast={showToast} />
-                   <label className="shirt-toggle" title="Shirt printed?">
-                     <input type="checkbox" checked={!!leader.tshirtPrinted} onChange={async () => {
-                       try { await onUpdateDelegate(leader.id, { tshirtPrinted: !leader.tshirtPrinted }); showToast(leader.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
-                     }} />
-                     <span className="shirt-label">👕</span>
-                   </label>
+<label className="shirt-toggle" title="Shirt printed?">
+                      <input type="checkbox" checked={!!leader.tshirtPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(leader.id, { tshirtPrinted: !leader.tshirtPrinted }); showToast(leader.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">👕</span>
+                    </label>
+                    <label className="shirt-toggle" title="ID printed?">
+                      <input type="checkbox" checked={!!leader.idPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(leader.id, { idPrinted: !leader.idPrinted }); showToast(leader.idPrinted ? 'ID unmarked' : 'ID marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">🪪</span>
+                    </label>
                 </div>
                 <div className="member-actions">
                   <button className="member-btn" onClick={() => onTogglePayment(leader.id, leader.paymentStatus)}>{leader.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
@@ -211,12 +217,18 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={a} onUpdate={onUpdateDelegate} showToast={showToast} />
-                   <label className="shirt-toggle" title="Shirt printed?">
-                     <input type="checkbox" checked={!!a.tshirtPrinted} onChange={async () => {
-                       try { await onUpdateDelegate(a.id, { tshirtPrinted: !a.tshirtPrinted }); showToast(a.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
-                     }} />
-                     <span className="shirt-label">👕</span>
-                   </label>
+<label className="shirt-toggle" title="Shirt printed?">
+                      <input type="checkbox" checked={!!a.tshirtPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(a.id, { tshirtPrinted: !a.tshirtPrinted }); showToast(a.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">👕</span>
+                    </label>
+                    <label className="shirt-toggle" title="ID printed?">
+                      <input type="checkbox" checked={!!a.idPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(a.id, { idPrinted: !a.idPrinted }); showToast(a.idPrinted ? 'ID unmarked' : 'ID marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">🪪</span>
+                    </label>
                 </div>
                 <div className="member-actions">
                   <button className="member-btn" onClick={() => onTogglePayment(a.id, a.paymentStatus)}>{a.paymentStatus === 'PAID' ? 'Unpaid' : 'Paid'}</button>
@@ -245,12 +257,18 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={m} onUpdate={onUpdateDelegate} showToast={showToast} />
-                   <label className="shirt-toggle" title="Shirt printed?">
-                     <input type="checkbox" checked={!!m.tshirtPrinted} onChange={async () => {
-                       try { await onUpdateDelegate(m.id, { tshirtPrinted: !m.tshirtPrinted }); showToast(m.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
-                     }} />
-                     <span className="shirt-label">👕</span>
-                   </label>
+<label className="shirt-toggle" title="Shirt printed?">
+                      <input type="checkbox" checked={!!m.tshirtPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(m.id, { tshirtPrinted: !m.tshirtPrinted }); showToast(m.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">👕</span>
+                    </label>
+                    <label className="shirt-toggle" title="ID printed?">
+                      <input type="checkbox" checked={!!m.idPrinted} onChange={async () => {
+                        try { await onUpdateDelegate(m.id, { idPrinted: !m.idPrinted }); showToast(m.idPrinted ? 'ID unmarked' : 'ID marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                      }} />
+                      <span className="shirt-label">🪪</span>
+                    </label>
                 </div>
                 <div className="member-actions">
                   <select
@@ -630,6 +648,12 @@ function AdminPage({
                             }} />
                             <span className="shirt-label">👕</span>
                           </label>
+                          <label className="shirt-toggle" title="ID printed?">
+                            <input type="checkbox" checked={!!d.idPrinted} onChange={async () => {
+                              try { await onUpdateDelegate(d.id, { idPrinted: !d.idPrinted }); showToast(d.idPrinted ? 'ID unmarked' : 'ID printed ✓', 'success') } catch { showToast('Failed', 'error') }
+                            }} />
+                            <span className="shirt-label">🪪</span>
+                          </label>
                           <span className={`status-tag compact ${d.paymentStatus.toLowerCase()}`}>{d.paymentStatus}</span>
                           <button className="action-btn edit-btn" onClick={() => setSelectedDelegate(d)} aria-label="Edit">Edit</button>
                         </div>
@@ -767,6 +791,7 @@ function AdminPage({
                 category: (form.elements.namedItem('category') as HTMLSelectElement).value as Delegate['category'],
                 gender: (form.elements.namedItem('gender') as HTMLSelectElement).value as 'Male' | 'Female',
                 tshirtPrinted: (form.elements.namedItem('tshirtPrinted') as HTMLSelectElement).value === 'Printed',
+                idPrinted: (form.elements.namedItem('idPrinted') as HTMLSelectElement).value === 'Printed',
               }
               try {
                 await onUpdateDelegate(selectedDelegate.id, updates)
@@ -816,6 +841,13 @@ function AdminPage({
                 <div className="form-group">
                   <label>T-Shirt Printed</label>
                   <select name="tshirtPrinted" defaultValue={selectedDelegate.tshirtPrinted ? 'Printed' : 'Not Printed'}>
+                    <option value="Not Printed">Not Printed</option>
+                    <option value="Printed">Printed</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>ID Printed</label>
+                  <select name="idPrinted" defaultValue={selectedDelegate.idPrinted ? 'Printed' : 'Not Printed'}>
                     <option value="Not Printed">Not Printed</option>
                     <option value="Printed">Printed</option>
                   </select>

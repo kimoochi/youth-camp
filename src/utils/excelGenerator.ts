@@ -44,6 +44,7 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
     { header: 'Category', key: 'category', width: 21 },
     { header: 'T-Shirt Size', key: 'tshirtSize', width: 12 },
     { header: 'T-Shirt Printed', key: 'tshirtPrinted', width: 14 },
+    { header: 'ID Printed', key: 'idPrinted', width: 12 },
     { header: 'Group', key: 'group', width: 15 },
     { header: 'Role', key: 'role', width: 12 },
     { header: 'Payment', key: 'payment', width: 11 },
@@ -52,10 +53,12 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
     { header: 'Registered', key: 'registered', width: 19 },
   ]
 
-  const paymentColIdx = 12   // L column (1-based)
-  const printedColIdx = 9    // I column (1-based)
-  const paymentColLetter = 'L'
-  const printedColLetter = 'I'
+  const paymentColIdx = 13   // M column (1-based)
+  const tshirtPrintedColIdx = 9    // I column (1-based)
+  const idPrintedColIdx = 10    // J column (1-based)
+  const paymentColLetter = 'M'
+  const tshirtPrintedColLetter = 'I'
+  const idPrintedColLetter = 'J'
 
   let hasAnySheet = false
 
@@ -98,6 +101,7 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
         category: m.category,
         tshirtSize: m.tshirtSize,
         tshirtPrinted: m.tshirtPrinted ? 'Printed' : 'Not Printed',
+        idPrinted: m.idPrinted ? 'Printed' : 'Not Printed',
         group: groupName,
         role: roleLabel,
         payment: m.paymentStatus,
@@ -125,7 +129,17 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
       }
 
       // Data validation: T-Shirt Printed dropdown
-      row.getCell(printedColIdx).dataValidation = {
+      row.getCell(tshirtPrintedColIdx).dataValidation = {
+        type: 'list',
+        allowBlank: false,
+        formulae: ['"Printed,Not Printed"'],
+        showErrorMessage: true,
+        errorTitle: 'Invalid',
+        error: 'Select Printed or Not Printed',
+      }
+
+      // Data validation: ID Printed dropdown
+      row.getCell(idPrintedColIdx).dataValidation = {
         type: 'list',
         allowBlank: false,
         formulae: ['"Printed,Not Printed"'],
@@ -167,7 +181,7 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
 
     // --- CONDITIONAL FORMATTING: T-Shirt Printed column ---
     ws.addConditionalFormatting({
-      ref: `${printedColLetter}2:${printedColLetter}${lastDataRow}`,
+      ref: `${tshirtPrintedColLetter}2:${tshirtPrintedColLetter}${lastDataRow}`,
       rules: [
         {
           type: 'cellIs',
@@ -183,6 +197,33 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
           type: 'cellIs',
           operator: 'equal',
           priority: 4,
+          formulae: ['"Not Printed"'],
+          style: {
+            font: { bold: true, color: { argb: 'FFDC2626' } },
+            fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFEE2E2' } },
+          },
+        },
+      ],
+    })
+
+    // --- CONDITIONAL FORMATTING: ID Printed column ---
+    ws.addConditionalFormatting({
+      ref: `${idPrintedColLetter}2:${idPrintedColLetter}${lastDataRow}`,
+      rules: [
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          priority: 5,
+          formulae: ['"Printed"'],
+          style: {
+            font: { bold: true, color: { argb: 'FF15803D' } },
+            fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDCFCE7' } },
+          },
+        },
+        {
+          type: 'cellIs',
+          operator: 'equal',
+          priority: 6,
           formulae: ['"Not Printed"'],
           style: {
             font: { bold: true, color: { argb: 'FFDC2626' } },

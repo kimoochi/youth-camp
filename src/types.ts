@@ -45,6 +45,7 @@ export interface Delegate {
   isNew?: boolean
   locked?: boolean
   tshirtPrinted?: boolean
+  idPrinted?: boolean
   justAdded?: boolean
 }
 
@@ -65,5 +66,6 @@ export interface RegistrationFormState {
   category: DelegateCategory
   tshirtSize: TShirtSize
   tshirtPrinted: 'Not Printed' | 'Printed'
+  idPrinted: 'Not Printed' | 'Printed'
   preferredName: string
 }

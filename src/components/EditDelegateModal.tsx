@@ -18,7 +18,8 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
     category: delegate.category,
     tshirtSize: delegate.tshirtSize,
     tshirtPrinted: delegate.tshirtPrinted ? 'Printed' : 'Not Printed',
-  } : { tshirtPrinted: 'Not Printed' as const };
+    idPrinted: delegate.idPrinted ? 'Printed' : 'Not Printed',
+  } : { tshirtPrinted: 'Not Printed' as const, idPrinted: 'Not Printed' as const };
 
   const [formData, setFormData] = useState<Partial<RegistrationFormState>>(initialFormData);
 
@@ -31,9 +32,11 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
     e.preventDefault();
     if (delegate) {
       const printedValue = formData.tshirtPrinted === 'Printed';
+      const idPrintedValue = formData.idPrinted === 'Printed';
       const saveData = {
         ...formData,
         tshirtPrinted: printedValue,
+        idPrinted: idPrintedValue,
       };
       onSave(delegate.id, saveData as any);
     }
@@ -97,6 +100,13 @@ const EditDelegateModal = ({ delegate, onClose, onSave }: EditDelegateModalProps
             <div className="field-group">
               <label htmlFor="tshirtPrinted">T-Shirt Printed</label>
               <select id="tshirtPrinted" name="tshirtPrinted" value={formData.tshirtPrinted} onChange={handleChange}>
+                <option value="Not Printed">Not Printed</option>
+                <option value="Printed">Printed</option>
+              </select>
+            </div>
+            <div className="field-group">
+              <label htmlFor="idPrinted">ID Printed</label>
+              <select id="idPrinted" name="idPrinted" value={formData.idPrinted} onChange={handleChange}>
                 <option value="Not Printed">Not Printed</option>
                 <option value="Printed">Printed</option>
               </select>
