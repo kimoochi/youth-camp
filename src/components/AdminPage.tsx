@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CHURCHES, getChurchName } from '../types'
 import type { ChurchId, Delegate, Group, TShirtSize } from '../types'
 import { generateGroupListPDF } from '../utils/pdfGenerator'
-import { generateChurchListExcel } from '../utils/excelGenerator'
+import { generateChurchListExcel, generateGroupListExcel } from '../utils/excelGenerator'
 import { moveDelegateToGroup } from '../services/firestoreService'
 
 interface AdminPageProps {
@@ -153,6 +153,7 @@ function GroupCard({
 
       <div className="group-card-actions">
           <button className="group-btn" onClick={() => generateGroupListPDF(g, delegates)} title="Download Member List">List PDF</button>
+          <button className="group-btn" onClick={() => generateGroupListExcel(g, delegates)} title="Download Group Excel List">📊 Excel</button>
           <button className="group-btn" onClick={() => onPrintIDs(g.id, false)} title="Download ID Cards">IDs PDF</button>
           <button className="group-btn primary" onClick={() => onPrintIDs(g.id, true)} title="Direct Print IDs">Print IDs</button>
         </div>
@@ -310,6 +311,18 @@ function GroupCard({
                 <div className="member-quick-edit">
                   <span className="quick-label">Size:</span>
                   <MemberTShirtSelect member={m} onUpdate={onUpdateDelegate} showToast={showToast} />
+                  <label className="shirt-toggle" title="Shirt printed?">
+                    <input type="checkbox" checked={!!m.tshirtPrinted} onChange={async () => {
+                      try { await onUpdateDelegate(m.id, { tshirtPrinted: !m.tshirtPrinted }); showToast(m.tshirtPrinted ? 'Shirt unmarked' : 'Shirt marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                    }} />
+                    <span className="shirt-label">👕</span>
+                  </label>
+                  <label className="shirt-toggle" title="ID printed?">
+                    <input type="checkbox" checked={!!m.idPrinted} onChange={async () => {
+                      try { await onUpdateDelegate(m.id, { idPrinted: !m.idPrinted }); showToast(m.idPrinted ? 'ID unmarked' : 'ID marked as printed', 'success') } catch { showToast('Failed', 'error') }
+                    }} />
+                    <span className="shirt-label">🪪</span>
+                  </label>
                 </div>
                 <div className="member-actions">
                   <select

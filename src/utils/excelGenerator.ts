@@ -356,3 +356,94 @@ export const generateChurchListExcel = async (delegates: Delegate[], groups: Gro
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   saveAs(blob, 'Youth_Camp_2026_Churches.xlsx')
 }
+
+/**
+ * Generates a simple Excel file for a single group.
+ * Columns: #, Name, Role, T-Shirt Printed, ID Printed
+ */
+export const generateGroupListExcel = async (group: Group, allDelegates: Delegate[]) => {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'Youth Camp 2026'
+  wb.created = new Date()
+
+  const members = group.delegateIds
+    .map(id => allDelegates.find(d => d.id === id))
+    .filter((d): d is Delegate => !!d)
+    .sort((a, b) => a.lastName.localeCompare(b.lastName))
+
+  const ws = wb.addWorksheet(group.name.substring(0, 31))
+  ws.columns = [
+    { header: '#', key: 'num', width: 5 },
+    { header: 'Name', key: 'name', width: 30 },
+    { header: 'Gender', key: 'gender', width: 9 },
+    { header: 'Role', key: 'role', width: 14 },
+    { header: 'T-Shirt Printed', key: 'tshirtPrinted', width: 16 },
+    { header: 'ID Printed', key: 'idPrinted', width: 13 },
+  ]
+
+  // Header style
+  const headerRow = ws.getRow(1)
+  headerRow.font = { bold: true, size: 10, color: { argb: 'FF333333' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8E8E8' } }
+  headerRow.alignment = { horizontal: 'center', vertical: 'middle' }
+  headerRow.height = 20
+  headerRow.eachCell(cell => {
+    cell.border = { bottom: { style: 'thin', color: { argb: 'FFBBBBBB' } } }
+  })
+
+  // Data rows
+  members.forEach((m, idx) => {
+    const roleLabel = m.role === 'Leader' ? 'Leader' : m.role === 'Assistant Leader' ? 'Asst. Leader' : 'Delegate'
+    const row = ws.addRow({
+      num: idx + 1,
+      name: `${m.lastName}, ${m.firstName}`,
+      gender: m.gender,
+      role: roleLabel,
+      tshirtPrinted: m.tshirtPrinted ? 'Printed' : 'Not Printed',
+      idPrinted: m.idPrinted ? 'Printed' : 'Not Printed',
+    })
+    row.font = { size: 10 }
+    row.alignment = { vertical: 'middle' }
+    row.eachCell(cell => {
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFDDDDDD' } } }
+    })
+
+    // Data validation dropdowns
+    row.getCell(5).dataValidation = { type: 'list', allowBlank: false, formulae: ['"Printed,Not Printed"'] }
+    row.getCell(6).dataValidation = { type: 'list', allowBlank: false, formulae: ['"Printed,Not Printed"'] }
+  })
+
+  const lastDataRow = members.length + 1
+
+  // Conditional formatting: T-Shirt Printed (col E)
+  ws.addConditionalFormatting({
+    ref: `E2:E${lastDataRow}`,
+    rules: [
+      { type: 'cellIs', operator: 'equal', priority: 1, formulae: ['"Printed"'], style: { font: { bold: true, color: { argb: 'FF15803D' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDCFCE7' } } } },
+      { type: 'cellIs', operator: 'equal', priority: 2, formulae: ['"Not Printed"'], style: { font: { bold: true, color: { argb: 'FFDC2626' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFEE2E2' } } } },
+    ],
+  })
+
+  // Conditional formatting: ID Printed (col F)
+  ws.addConditionalFormatting({
+    ref: `F2:F${lastDataRow}`,
+    rules: [
+      { type: 'cellIs', operator: 'equal', priority: 3, formulae: ['"Printed"'], style: { font: { bold: true, color: { argb: 'FF15803D' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFDCFCE7' } } } },
+      { type: 'cellIs', operator: 'equal', priority: 4, formulae: ['"Not Printed"'], style: { font: { bold: true, color: { argb: 'FFDC2626' } }, fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFEE2E2' } } } },
+    ],
+  })
+
+  // Freeze header + auto-filter
+  ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 0 }]
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: lastDataRow, column: 6 } }
+
+  // Footer
+  const footerRow = ws.addRow({})
+  footerRow.getCell(1).value = `Total: ${members.length}`
+  footerRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF555555' } }
+
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const safeName = group.name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_')
+  saveAs(blob, `Group_${safeName}.xlsx`)
+}
