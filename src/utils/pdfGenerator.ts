@@ -176,6 +176,7 @@ export const generateIDCards = async (delegates: Delegate[], groups: Group[], gr
       const members = g.delegateIds
         .map(id => delegates.find(d => d.id === id))
         .filter((d): d is Delegate => !!d)
+        .filter(d => !d.idPrinted) // Skip delegates whose ID is already printed
 
       members.forEach((d) => {
         toPrint.push({ firstName: d.preferredName || d.firstName, church: d.church, groupName: g.name })
@@ -184,7 +185,7 @@ export const generateIDCards = async (delegates: Delegate[], groups: Group[], gr
   }
 
   if (toPrint.length === 0) {
-    alert('No delegates found to print.')
+    alert('No unprinted IDs found. All delegates in this selection already have their ID marked as printed.')
     return
   }
 
