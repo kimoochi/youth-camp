@@ -239,7 +239,7 @@ export const generateIDCards = async (delegates: Delegate[], groups: Group[], gr
     // Draw Name - sitting on line
     doc.setTextColor(0, 0, 0)
     doc.setFont('helvetica', 'bold')
-    let nameFontSize = 25 // approx 24px
+    let nameFontSize = 30 // approx 24px
     doc.setFontSize(nameFontSize)
     const upperName = firstName.toUpperCase()
     let nameTextWidth = doc.getTextWidth(upperName)
