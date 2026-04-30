@@ -15,6 +15,12 @@ const GROUP_LAYOUTS: Record<string, string> = {
   'Peter': PeterImg,
 }
 
+const getLayoutForGroup = (groupName: string): string => {
+  const name = groupName.toLowerCase()
+  const key = Object.keys(GROUP_LAYOUTS).find(k => name.includes(k.toLowerCase()))
+  return key || 'Bereans'
+}
+
 export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {
   const doc = new jsPDF()
   const members = group.delegateIds
@@ -151,8 +157,8 @@ const addImageToDoc = (doc: jsPDF, imgUrl: string, x: number, y: number, w: numb
 
 export const generateIDCards = async (delegates: Delegate[], groups: Group[], groupId?: string, autoPrint: boolean = false, manualEntries?: { firstName: string, church: string, groupName: string }[]) => {
   // Target dimensions for the ID card
-  const cardW = 100
-  const cardH = 135
+  const cardW = 93
+  const cardH = 128
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -172,7 +178,7 @@ export const generateIDCards = async (delegates: Delegate[], groups: Group[], gr
         .filter((d): d is Delegate => !!d)
 
       members.forEach((d) => {
-        toPrint.push({ firstName: d.firstName, church: d.church, groupName: g.name })
+        toPrint.push({ firstName: d.preferredName || d.firstName, church: d.church, groupName: g.name })
       })
     })
   }
@@ -205,7 +211,8 @@ export const generateIDCards = async (delegates: Delegate[], groups: Group[], gr
     const y = marginY + row * (cardH + gapY)
 
     // Draw Background
-    const layoutImg = GROUP_LAYOUTS[groupName] || null
+    const layoutKey = getLayoutForGroup(groupName)
+    const layoutImg = GROUP_LAYOUTS[layoutKey] || null
     if (layoutImg) {
       await addImageToDoc(doc, layoutImg, x, y, cardW, cardH)
     } else {
