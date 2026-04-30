@@ -157,8 +157,8 @@ const addImageToDoc = (doc: jsPDF, imgUrl: string, x: number, y: number, w: numb
 
 export const generateIDCards = async (delegates: Delegate[], groups: Group[], groupId?: string, autoPrint: boolean = false, manualEntries?: { firstName: string, church: string, groupName: string }[]) => {
   // Target dimensions for the ID card
-  const cardW = 93
-  const cardH = 128
+  const cardW = 100
+  const cardH = 135
 
   const doc = new jsPDF({
     orientation: 'portrait',
