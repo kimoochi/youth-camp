@@ -18,11 +18,11 @@ interface RegistrationPageProps {
     value: RegistrationFormState[keyof RegistrationFormState]
   ) => void
   onConfirmBulkCount: (n: number) => void
-  onSubmitBulk: (e: FormEvent) => Promise<string[]> 
+  onSubmitBulk: (e: FormEvent) => Promise<string[]>
   onSelectChurch: (church: ChurchId) => void
   onFinishRegistration: () => void
   onGoHome: () => void
-  showToast: (msg: string, type: 'success'|'error'|'info') => void
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void
 }
 
 function RegistrationPage({
@@ -43,7 +43,7 @@ function RegistrationPage({
   showToast
 }: RegistrationPageProps) {
 
-  const GCASH_NUMBER = '09619605811'
+  const GCASH_NUMBER = '09958367243'
 
   const isValidName = (v: string) => {
     const s = v.trim()
@@ -279,7 +279,7 @@ function RegistrationPage({
             <div className="reg-success-icon">✓</div>
             <h2 className="reg-success-title">Registration Complete!</h2>
             <p className="reg-success-text">{bulkForms.length} delegate{bulkForms.length > 1 ? 's' : ''} registered successfully.</p>
-            
+
             {bulkPaymentMethod === 'ONLINE' ? (
               <div className="reg-payment-info">
                 <p className="reg-total">Total: <strong>₱{bulkForms.length * 600}</strong></p>
@@ -289,7 +289,7 @@ function RegistrationPage({
             ) : (
               <p className="reg-payment-info">Pay ₱{bulkForms.length * 600} on-site during check-in.</p>
             )}
-            
+
             <button className="reg-btn reg-btn-primary" onClick={onFinishRegistration}>Register More</button>
           </section>
         )}
