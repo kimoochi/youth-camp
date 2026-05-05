@@ -391,6 +391,7 @@ function AdminPage({
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('unpaid')
   const [selectedDelegate, setSelectedDelegate] = useState<Delegate | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const allGroups = useMemo(() => {
     return [...groups].sort((a, b) => {
       if (a.name === 'Following Peter') return 1
@@ -426,6 +427,16 @@ function AdminPage({
     setFormData({ firstName: '', lastName: '', church: 'MIBC', age: '', gender: 'Male', birthday: '', category: 'Young Professional', tshirtSize: 'M' })
   }
 
+  const filterBySearch = (list: Delegate[]) => {
+    if (!searchTerm) return list
+    const lower = searchTerm.toLowerCase()
+    return list.filter(d => 
+      d.firstName.toLowerCase().includes(lower) || 
+      d.lastName.toLowerCase().includes(lower) ||
+      `${d.firstName} ${d.lastName}`.toLowerCase().includes(lower)
+    )
+  }
+
   const filterByChurch = (list: Delegate[]) => {
     if (adminChurchFilter === 'ALL') return list
     return list.filter(d => d.church === adminChurchFilter)
@@ -434,11 +445,11 @@ function AdminPage({
   const sortByLastName = (list: Delegate[]) =>
     [...list].sort((a, b) => a.lastName.localeCompare(b.lastName))
 
-  const visibleUnpaid = sortByLastName(filterByChurch(unpaidDelegates))
-  const lateDelegates = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt >= '2026-05-05'))
-  const regularUnassigned = sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05'))
-  const visibleLeaders = sortByLastName(filterByChurch(delegates.filter(d => d.role === 'Leader' || d.role === 'Assistant Leader')))
-  const allRegistered = sortByLastName(filterByChurch(delegates))
+  const visibleUnpaid = filterBySearch(sortByLastName(filterByChurch(unpaidDelegates)))
+  const lateDelegates = filterBySearch(sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt >= '2026-05-05')))
+  const regularUnassigned = filterBySearch(sortByLastName(unassignedPaidDelegates.filter(d => d.createdAt < '2026-05-05')))
+  const visibleLeaders = filterBySearch(sortByLastName(filterByChurch(delegates.filter(d => d.role === 'Leader' || d.role === 'Assistant Leader'))))
+  const allRegistered = filterBySearch(sortByLastName(filterByChurch(delegates)))
 
   const getSlideOffset = () => {
     if (activeSidebarTab === 'unpaid') return '0%'
@@ -553,6 +564,16 @@ function AdminPage({
               <div className="sidebar-header">
                 <span className="sidebar-title">Delegates</span>
                 <span className="sidebar-count">{delegates.length}</span>
+              </div>
+              <div className="sidebar-search">
+                <input 
+                  type="text" 
+                  placeholder="Search delegates..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="delegate-search-input"
+                  aria-label="Search delegates"
+                />
               </div>
               <div className="sidebar-tabs" role="tablist">
                 <button role="tab" aria-selected={activeSidebarTab === 'registered'} className={`sidebar-tab ${activeSidebarTab === 'registered' ? 'active' : ''}`} onClick={() => setActiveSidebarTab('registered')}>

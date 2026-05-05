@@ -1413,6 +1413,36 @@ tr:last-child td { border-bottom: none; }
   background: #1a1a1a;
 }
 
+.sidebar-search {
+  padding: 0.5rem 0.8rem;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.delegate-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: white;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.delegate-search-input::placeholder {
+  color: #888;
+}
+
+.delegate-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #2a2a2a;
+  color: white;
+  box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+}
+
 .sidebar-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
