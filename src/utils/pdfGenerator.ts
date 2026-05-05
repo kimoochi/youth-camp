@@ -26,6 +26,7 @@ export const generateGroupListPDF = (group: Group, delegates: Delegate[]) => {
   const members = group.delegateIds
     .map(id => delegates.find(d => d.id === id))
     .filter((d): d is Delegate => !!d)
+    .sort((a, b) => a.lastName.localeCompare(b.lastName))
 
   // Title
   doc.setFontSize(18)
